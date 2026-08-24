@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: file: blob:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file: blob:; object-src 'none'; base-uri 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Oplus Studio</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#asset-grid">Skip to assets</a>
+
+  <div id="app" class="app-shell" aria-busy="true">
+    <header class="topbar">
+      <div class="brand" aria-label="Oplus Studio">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" role="img"><path d="M16 2.5 28 9.2v13.6L16 29.5 4 22.8V9.2L16 2.5Zm0 5.1-7.5 4.2v8.4l7.5 4.2 7.5-4.2v-8.4L16 7.6Zm0 3.7 4.3 2.4v4.7L16 20.8l-4.3-2.4v-4.7l4.3-2.4Z"/></svg>
+        </span>
+        <span class="brand-copy">
+          <strong>OPLUS</strong>
+          <span>STUDIO</span>
+        </span>
+      </div>
+
+      <label class="search-box" for="search-input">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20.7 19.3-4.2-4.2a7.5 7.5 0 1 0-1.4 1.4l4.2 4.2a1 1 0 0 0 1.4-1.4ZM5 10.5a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z"/></svg>
+        <input id="search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search assets, tags, categories…" aria-label="Search assets">
+        <kbd title="Keyboard shortcut">/</kbd>
+      </label>
+
+      <div class="topbar-actions">
+        <button id="save-button" class="button button-primary" type="button" title="Save selected After Effects layers (Ctrl+S)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5l-2-2Zm-7 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm5-10H6V5h11v4Z"/></svg>
+          <span>SAVE</span>
+        </button>
+        <button id="settings-button" class="icon-button" type="button" title="Settings" aria-label="Open settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.3 7.3 0 0 0 .1-1 7.3 7.3 0 0 0-.1-1l2.1-1.6-2-3.4L17 7a7.7 7.7 0 0 0-1.7-1L15 3.3h-4L10.6 6a7.7 7.7 0 0 0-1.7 1L6.5 6l-2 3.4L6.6 11a7.3 7.3 0 0 0-.1 1 7.3 7.3 0 0 0 .1 1l-2.1 1.6 2 3.4L9 17a7.7 7.7 0 0 0 1.7 1l.3 2.7h4l.4-2.7a7.7 7.7 0 0 0 1.7-1l2.4 1 2-3.4-2.1-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="connection-bar" aria-label="Connection status">
+      <button id="connection-pill" class="connection-pill is-checking" type="button" aria-live="polite" title="Test After Effects connection">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="connection-label">Connecting to Oplus Engine…</span>
+      </button>
+      <dl class="host-facts">
+        <div><dt>AE</dt><dd id="ae-version">—</dd></div>
+        <div><dt>PROJECT</dt><dd id="project-status">Checking…</dd></div>
+        <div class="path-fact"><dt>LIBRARY</dt><dd id="library-status" title="No library configured">Not configured</dd></div>
+      </dl>
+    </section>
+
+    <div class="workspace">
+      <aside class="sidebar" aria-label="Asset categories">
+        <div class="sidebar-heading">
+          <span>LIBRARY</span>
+          <span id="asset-count" class="count-badge">0</span>
+        </div>
+        <nav id="category-list" class="category-list" aria-label="Categories">
+          <button class="category-item is-active" type="button" data-category="All" aria-current="page">
+            <span class="category-icon" aria-hidden="true">◆</span><span>All Assets</span><span class="category-count" data-count="All">0</span>
+          </button>
+          <button class="category-item" type="button" data-category="Favorites">
+            <span class="category-icon" aria-hidden="true">★</span><span>Favorites</span><span class="category-count" data-count="Favorites">0</span>
+          </button>
+          <div class="nav-separator" role="separator"></div>
+          <button class="category-item" type="button" data-category="Shapes"><span class="category-icon" aria-hidden="true">⬟</span><span>Shapes</span><span class="category-count" data-count="Shapes">0</span></button>
+          <button class="category-item" type="button" data-category="Text"><span class="category-icon category-text" aria-hidden="true">T</span><span>Text</span><span class="category-count" data-count="Text">0</span></button>
+          <button class="category-item" type="button" data-category="Animations"><span class="category-icon" aria-hidden="true">↗</span><span>Animations</span><span class="category-count" data-count="Animations">0</span></button>
+          <button class="category-item" type="button" data-category="Effects"><span class="category-icon" aria-hidden="true">✦</span><span>Effects</span><span class="category-count" data-count="Effects">0</span></button>
+          <button class="category-item" type="button" data-category="Transitions"><span class="category-icon" aria-hidden="true">⇄</span><span>Transitions</span><span class="category-count" data-count="Transitions">0</span></button>
+          <button class="category-item" type="button" data-category="Presets"><span class="category-icon" aria-hidden="true">◇</span><span>Presets</span><span class="category-count" data-count="Presets">0</span></button>
+          <button class="category-item" type="button" data-category="Compositions"><span class="category-icon" aria-hidden="true">▣</span><span>Compositions</span><span class="category-count" data-count="Compositions">0</span></button>
+        </nav>
+        <div class="sidebar-footer">
+          <span id="storage-label">Local library</span>
+          <button id="reveal-library-button" class="text-button" type="button">Reveal folder</button>
+        </div>
+      </aside>
+
+      <main class="library-view" aria-labelledby="view-title">
+        <div class="library-toolbar">
+          <div>
+            <p class="eyebrow">BROWSE</p>
+            <h1 id="view-title">All Assets</h1>
+          </div>
+          <div class="toolbar-actions">
+            <label class="select-control" for="sort-select">
+              <span class="sr-only">Sort assets</span>
+              <select id="sort-select" aria-label="Sort assets">
+                <option value="updated-desc">Recently updated</option>
+                <option value="created-desc">Newest created</option>
+                <option value="name-asc">Name A–Z</option>
+                <option value="name-desc">Name Z–A</option>
+              </select>
+            </label>
+            <button id="refresh-button" class="icon-button" type="button" title="Refresh library" aria-label="Refresh library">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.4 5.6A9 9 0 1 0 21 12h-2a7 7 0 1 1-2-4.9L14 10h7V3l-2.6 2.6Z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="library-state" class="library-state" aria-live="polite">
+          <div id="loading-state" class="state-panel">
+            <span class="spinner" aria-hidden="true"></span>
+            <strong>Loading your library</strong>
+            <span>Reading asset metadata and previews…</span>
+          </div>
+          <div id="empty-state" class="state-panel" hidden>
+            <span class="state-icon" aria-hidden="true">＋</span>
+            <strong id="empty-title">Your library is ready</strong>
+            <span id="empty-copy">Select layers in After Effects and save your first reusable asset.</span>
+            <button id="empty-save-button" class="button button-primary" type="button">SAVE SELECTED LAYERS</button>
+          </div>
+          <div id="error-state" class="state-panel state-error" hidden>
+            <span class="state-icon" aria-hidden="true">!</span>
+            <strong>Library could not be loaded</strong>
+            <span id="error-message">Check the selected location and try again.</span>
+            <button id="retry-button" class="button button-secondary" type="button">TRY AGAIN</button>
+          </div>
+        </div>
+
+        <section id="asset-grid" class="asset-grid" aria-label="Assets" tabindex="-1" hidden></section>
+      </main>
+
+      <aside id="detail-pane" class="detail-pane" aria-label="Asset details">
+        <div id="detail-empty" class="detail-empty">
+          <span class="detail-empty-icon" aria-hidden="true">◇</span>
+          <strong>No asset selected</strong>
+          <span>Select an asset to inspect its preview and metadata.</span>
+        </div>
+        <div id="detail-content" hidden>
+          <div class="preview-stage">
+            <img id="detail-preview" alt="" draggable="false">
+            <div id="detail-preview-fallback" class="preview-fallback" aria-hidden="true"><span>OPLUS</span></div>
+            <button id="favorite-button" class="preview-action" type="button" aria-label="Add to favorites" title="Favorite">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.2 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9L6.6 20l1-6.1-4.4-4.3 6.1-.9L12 3.2Z"/></svg>
+            </button>
+          </div>
+
+          <div class="detail-heading">
+            <div>
+              <span id="detail-category" class="category-chip">UNCATEGORIZED</span>
+              <h2 id="detail-name">Asset</h2>
+            </div>
+            <button id="edit-button" class="icon-button compact" type="button" aria-label="Edit asset metadata" title="Edit metadata">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5ZM21 6.5a1.4 1.4 0 0 0 0-2L19.5 3a1.4 1.4 0 0 0-2 0l-1 1 3.5 3.5 1-1Z"/></svg>
+            </button>
+          </div>
+
+          <dl class="metadata-list">
+            <div><dt>TYPE</dt><dd id="detail-type">—</dd></div>
+            <div><dt>CREATED</dt><dd id="detail-created">—</dd></div>
+            <div><dt>LAYERS</dt><dd id="detail-layers">—</dd></div>
+            <div><dt>AE VERSION</dt><dd id="detail-version">—</dd></div>
+          </dl>
+
+          <div class="detail-section">
+            <h3>TAGS</h3>
+            <div id="detail-tags" class="tag-list"><span class="muted">No tags</span></div>
+          </div>
+          <div class="detail-section">
+            <h3>DESCRIPTION</h3>
+            <p id="detail-description" class="description">No description provided.</p>
+          </div>
+
+          <div class="detail-actions">
+            <label class="field compact-field" for="import-mode-select">
+              <span>IMPORT MODE</span>
+              <select id="import-mode-select">
+                <option value="original">Keep Original Position</option>
+                <option value="center">Center Composition</option>
+                <option value="currentTime">Place At Current Time</option>
+                <option value="originalTime">Keep Original Time</option>
+                <option value="replace">Replace Selected Layers</option>
+              </select>
+            </label>
+            <button id="import-button" class="button button-primary button-wide" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4h2v9l3.5-3.5 1.4 1.4-5.9 5.9-5.9-5.9 1.4-1.4L11 13V4Zm-6 15h14v2H5v-2Z"/></svg>
+              IMPORT
+            </button>
+            <button id="delete-button" class="button button-danger-ghost button-wide" type="button">DELETE ASSET</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <section id="setup-screen" class="setup-screen" aria-labelledby="setup-title" hidden>
+    <div class="setup-card">
+      <div class="setup-logo" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><path d="M32 5 56 18.5v27L32 59 8 45.5v-27L32 5Zm0 10L17 23.4v17.2L32 49l15-8.4V23.4L32 15Zm0 7.5 8.5 4.8v9.4L32 41.5l-8.5-4.8v-9.4l8.5-4.8Z"/></svg>
+      </div>
+      <p class="eyebrow">FIRST LAUNCH</p>
+      <h1 id="setup-title">Welcome to Oplus Studio</h1>
+      <p class="setup-copy">Choose a location for your motion design library. Assets, previews, logs, and metadata stay together and can be moved or backed up at any time.</p>
+      <label class="field" for="setup-path-input">
+        <span>LIBRARY LOCATION</span>
+        <div class="path-picker">
+          <input id="setup-path-input" type="text" placeholder="Choose a folder…" spellcheck="false">
+          <button id="setup-browse-button" class="button button-secondary" type="button">BROWSE</button>
+        </div>
+      </label>
+      <p id="setup-validation" class="field-message" role="alert" hidden></p>
+      <button id="setup-continue-button" class="button button-primary button-wide" type="button" disabled>CREATE LIBRARY</button>
+      <div class="setup-note"><span aria-hidden="true">✓</span> Oplus never uploads your assets. Your library remains local.</div>
+    </div>
+  </section>
+
+  <div id="metadata-dialog" class="modal-backdrop" role="presentation" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="metadata-dialog-title">
+      <header class="modal-header">
+        <div>
+          <p id="metadata-dialog-eyebrow" class="eyebrow">NEW ASSET</p>
+          <h2 id="metadata-dialog-title">Save selected layers</h2>
+        </div>
+        <button class="icon-button modal-close" type="button" data-close-dialog="metadata-dialog" aria-label="Close dialog">×</button>
+      </header>
+      <form id="metadata-form" novalidate>
+        <div id="selection-summary" class="selection-summary" aria-live="polite">
+          <span class="spinner small" aria-hidden="true"></span>
+          <span>Inspecting selected layers…</span>
+        </div>
+        <label class="field" for="asset-name-input">
+          <span>NAME <em>Required</em></span>
+          <input id="asset-name-input" name="name" type="text" maxlength="100" autocomplete="off" required placeholder="e.g. Spring Title Reveal">
+        </label>
+        <div class="form-row">
+          <label class="field" for="asset-category-select">
+            <span>CATEGORY</span>
+            <select id="asset-category-select" name="category">
+              <option>Animations</option><option>Shapes</option><option>Text</option><option>Effects</option><option>Transitions</option><option>Presets</option><option>Compositions</option>
+            </select>
+          </label>
+          <label class="field" for="asset-tags-input">
+            <span>TAGS <em>Comma separated</em></span>
+            <input id="asset-tags-input" name="tags" type="text" maxlength="300" placeholder="title, minimal, spring">
+          </label>
+        </div>
+        <label class="field" for="asset-description-input">
+          <span>DESCRIPTION</span>
+          <textarea id="asset-description-input" name="description" rows="3" maxlength="1000" placeholder="What is this asset for?"></textarea>
+        </label>
+        <p id="metadata-validation" class="field-message" role="alert" hidden></p>
+        <footer class="modal-footer">
+          <button class="button button-secondary" type="button" data-close-dialog="metadata-dialog">CANCEL</button>
+          <button id="metadata-submit-button" class="button button-primary" type="submit">SAVE ASSET</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <div id="settings-dialog" class="modal-backdrop" role="presentation" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header class="modal-header">
+        <div><p class="eyebrow">PREFERENCES</p><h2 id="settings-title">Oplus Settings</h2></div>
+        <button class="icon-button modal-close" type="button" data-close-dialog="settings-dialog" aria-label="Close dialog">×</button>
+      </header>
+      <form id="settings-form" novalidate>
+        <label class="field" for="settings-path-input">
+          <span>LIBRARY LOCATION</span>
+          <div class="path-picker">
+            <input id="settings-path-input" type="text" spellcheck="false" required>
+            <button id="settings-browse-button" class="button button-secondary" type="button">BROWSE</button>
+          </div>
+        </label>
+        <label class="toggle-row" for="auto-thumbnail-input">
+          <span><strong>Generate thumbnails automatically</strong><small>Create a PNG preview whenever an asset is saved.</small></span>
+          <input id="auto-thumbnail-input" type="checkbox"><span class="toggle" aria-hidden="true"></span>
+        </label>
+        <label class="field" for="default-mode-select">
+          <span>DEFAULT IMPORT MODE</span>
+          <select id="default-mode-select">
+            <option value="original">Keep Original Position</option>
+            <option value="center">Center Composition</option>
+            <option value="currentTime">Place At Current Time</option>
+            <option value="originalTime">Keep Original Time</option>
+            <option value="replace">Replace Selected Layers</option>
+          </select>
+        </label>
+        <p id="settings-validation" class="field-message" role="alert" hidden></p>
+        <footer class="modal-footer">
+          <button class="button button-secondary" type="button" data-close-dialog="settings-dialog">CANCEL</button>
+          <button id="settings-submit-button" class="button button-primary" type="submit">SAVE SETTINGS</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <div id="confirm-dialog" class="modal-backdrop" role="presentation" hidden>
+    <section class="modal modal-small" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-copy">
+      <header class="modal-header"><div><p class="eyebrow">CONFIRM ACTION</p><h2 id="confirm-title">Delete this asset?</h2></div></header>
+      <p id="confirm-copy" class="confirm-copy">This removes the asset from the active library and moves its folder to .Trash for manual recovery.</p>
+      <footer class="modal-footer">
+        <button id="confirm-cancel-button" class="button button-secondary" type="button">CANCEL</button>
+        <button id="confirm-delete-button" class="button button-danger" type="button">DELETE</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+
+  <script src="vendor/CSInterface.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

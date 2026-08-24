@@ -1,0 +1,21 @@
+{
+  "name": "oplus-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production CEP motion-design asset manager for Adobe After Effects 2025.",
+  "main": "Engine/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node Engine/test/run.js",
+    "check": "node scripts/check.js",
+    "build": "node scripts/build.js",
+    "clean": "node scripts/build.js --clean-only --skip-check",
+    "verify": "npm run check && npm test && npm run build",
+    "install:dev:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-dev.ps1",
+    "install:dev:mac": "bash ./scripts/install-dev.sh"
+  },
+  "engines": {
+    "node": ">=12.22"
+  },
+  "license": "UNLICENSED"
+}
