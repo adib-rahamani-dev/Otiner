@@ -1,0 +1,65 @@
+نصب اولیه Otiner Studio روی macOS
+نسخه: __VERSION__
+
+این بسته برای کسی است که هیچ نسخه‌ای از Otiner Studio روی مک ندارد.
+به ZXP Manager، Node.js، Terminal، رمز یا نسخه قبلی نیاز نیست.
+
+پیش‌نیاز:
+- macOS
+- Adobe After Effects 2025 (نسخه 25.x)
+
+مراحل نصب خیلی ساده:
+
+1) فایل ZIP را کامل Extract کنید.
+   برنامه را مستقیم از داخل ZIP اجرا نکنید.
+
+2) After Effects را کاملاً ببندید.
+   داخل After Effects کلیدهای Command + Q را بزنید.
+   فقط زدن دکمه قرمز پنجره کافی نیست.
+
+3) داخل پوشه Extractشده، فایل زیر را پیدا کنید:
+   Install Otiner Studio.app
+
+4) روی آن یک‌بار Right-click کنید.
+
+5) گزینه Open را بزنید.
+
+6) اگر macOS دوباره سؤال کرد، دوباره Open را بزنید.
+   این پیام به‌خاطر امضانشدن Installer با Apple Developer ID است.
+
+7) چند ثانیه صبر کنید تا پیام موفقیت نمایش داده شود.
+   Installer افزونه را فقط برای همین کاربر مک نصب می‌کند و Password نمی‌خواهد.
+
+8) After Effects 2025 را باز کنید.
+
+9) از بالای صفحه وارد این مسیر شوید:
+   After Effects > Settings > Scripting & Expressions
+
+10) این گزینه را روشن کنید:
+    Allow Scripts to Write Files and Access Network
+
+11) After Effects را با Command + Q ببندید و دوباره باز کنید.
+
+12) پنل را از یکی از این مسیرها باز کنید:
+    Window > Extensions (Legacy) > Otiner Studio
+    یا
+    Window > Extensions > Otiner Studio
+
+13) در اولین اجرا، یک پوشه برای Library انتخاب کنید.
+    بهتر است یک پوشه ساده مثل Documents/Otiner Library بسازید.
+
+اگر برنامه Installer باز نشد:
+
+1) دوباره روی Install Otiner Studio.app راست‌کلیک کنید.
+2) Open را بزنید؛ Double-click معمولی نکنید.
+3) اگر باز هم اجرا نشد، روی فایل Install Otiner Studio.command راست‌کلیک و Open را بزنید.
+
+مسیر نصب افزونه:
+~/Library/Application Support/Adobe/CEP/extensions/studio.oplus.ae
+
+فایل Log نصب:
+~/Library/Logs/Otiner-Studio-Installer.log
+
+حذف افزونه:
+After Effects را ببندید، سپس فقط پوشه studio.oplus.ae را از مسیر نصب بالا به Trash منتقل کنید.
+Library شخصی Assetها جداست و با حذف افزونه پاک نمی‌شود.

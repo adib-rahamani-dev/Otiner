@@ -273,21 +273,140 @@ function checkRequiredEngineFiles() {
     });
 }
 
+function checkTextContentRegression() {
+    var textModule = fs.readFileSync(path.join(extensionRoot, 'JSX', 'text.jsx'), 'utf8');
+    var hostSmoke = fs.readFileSync(path.join(projectRoot, 'Tests', 'host-smoke.jsx'), 'utf8');
+    if (textModule.indexOf('textGroup.property(matchName)') === -1) {
+        fail('Text serialization must resolve Source Text inside ADBE Text Properties.');
+    } else {
+        pass();
+    }
+    if (hostSmoke.indexOf('Text content restored exactly') === -1 ||
+            hostSmoke.indexOf('.value.text === "Oplus Smoke"') === -1) {
+        fail('Host smoke test must verify imported text content exactly.');
+    } else {
+        pass();
+    }
+    try {
+        function TextDocument(text) {
+            this.text = String(text || '');
+            this.fontSize = 48;
+            this.fillColor = [1, 1, 1];
+        }
+        function makeLayer(text) {
+            var source = {
+                value: new TextDocument(text),
+                setValue: function (value) { this.value = value; }
+            };
+            var textGroup = {
+                name: 'Text',
+                property: function (matchName) {
+                    return matchName === 'ADBE Text Document' ? source : null;
+                }
+            };
+            return {
+                source: source,
+                property: function (matchName) {
+                    return matchName === 'ADBE Text Properties' ? textGroup : null;
+                }
+            };
+        }
+        var context = {
+            TextDocument: TextDocument,
+            OPLUS: {
+                serializer: {
+                    jsonSafe: function (value) { return value; },
+                    serializeProperty: function (property) {
+                        return { value: { __oplusType: 'TextDocument', text: property.value.text } };
+                    },
+                    serializePropertyGroup: function () { return null; },
+                    applyProperty: function (property, data) {
+                        property.setValue(new TextDocument(data.value.text));
+                    },
+                    applyPropertyGroup: function () {}
+                }
+            }
+        };
+        vm.runInNewContext(textModule, context, { filename: 'text.jsx' });
+        var sourceLayer = makeLayer('Otiner keeps this text');
+        var serialized = context.OPLUS.text.serialize(sourceLayer, {}, []);
+        var targetLayer = makeLayer('');
+        context.OPLUS.text.apply(targetLayer, serialized, {}, []);
+        if (serialized.document.text !== 'Otiner keeps this text' ||
+                targetLayer.source.value.text !== 'Otiner keeps this text') {
+            fail('Text round-trip regression: serialized/imported content became empty.');
+        } else {
+            pass();
+        }
+    } catch (error) {
+        fail('Text round-trip regression harness failed: ' + error.message);
+    }
+}
+
+function checkFullFidelityContracts() {
+    var serializer = fs.readFileSync(path.join(extensionRoot, 'JSX', 'serializer.jsx'), 'utf8');
+    var importer = fs.readFileSync(path.join(extensionRoot, 'JSX', 'importer.jsx'), 'utf8');
+    var panel = fs.readFileSync(path.join(extensionRoot, 'UI', 'app.js'), 'utf8');
+    var html = fs.readFileSync(path.join(extensionRoot, 'UI', 'index.html'), 'utf8');
+    var textModule = fs.readFileSync(path.join(extensionRoot, 'JSX', 'text.jsx'), 'utf8');
+    var nativeModule = fs.readFileSync(path.join(extensionRoot, 'JSX', 'native.jsx'), 'utf8');
+    var bootstrap = fs.readFileSync(path.join(extensionRoot, 'JSX', 'bootstrap.jsx'), 'utf8');
+    [
+        [serializer, 'additionalProperties: serializeAdditionalGroups', 'All additional top-level AE property groups must be serialized.'],
+        [serializer, 'property.propertyParameters', 'Dropdown effect labels must be serialized when AE exposes them.'],
+        [serializer, 'function registerSource', 'Pre-compositions and footage sources must be registered recursively.'],
+        [importer, 'function buildSourceItems', 'Stored pre-compositions and footage sources must be rebuilt before layers.'],
+        [importer, 'source.packagedPath && options.assetDir', 'Imports must prefer self-contained packaged media.'],
+        [textModule, 'characterStyleRuns', 'Per-character rich text style runs must be preserved.'],
+        [textModule, 'paragraphStyleRuns', 'Per-paragraph rich text style runs must be preserved.'],
+        [panel, 'function collectAssetMedia', 'Asset saving must collect external media.'],
+        [panel, 'sha256File', 'Packaged media must include integrity hashes.'],
+        [panel, 'function importSharedAssetPackage', 'The panel must be able to receive shared asset packages.'],
+        [html, 'id="receive-button"', 'The shared-asset receiver must be exposed in the panel UI.'],
+        [nativeModule, 'app.project.reduceProject([snapshotComp])', 'Exact saves must create a reduced native AEP snapshot.'],
+        [nativeModule, 'strategy: "clipboard-isolated"', 'Exact saves must provide the isolated fast clipboard path.'],
+        [nativeModule, 'NATIVE_FAST_PATH_FALLBACK', 'Fast native saves must retain an exact compatibility fallback.'],
+        [nativeModule, 'findCachedComp(signature)', 'Repeated native imports must reuse a validated project cache.'],
+        [nativeModule, 'sourceLayer.copyToComp(destination)', 'Exact imports must use After Effects native layer copying.'],
+        [nativeModule, 'EFFECT_NOT_INSTALLED', 'Unavailable effects must be skipped with an explicit warning.'],
+        [serializer, '__oplusType: "LayerReference"', 'Layer-control references must be remapped to imported layers.'],
+        [serializer, 'nativeLayerIndices', 'Native save must reuse the already-resolved dependency layer list.'],
+        [serializer, 'options.nativeOnly === true', 'Fast exact profiles must avoid redundant full property JSON traversal.'],
+        [nativeModule, 'function addAsComposition', 'Native load must provide a safe single-precomposition path.'],
+        [nativeModule, 'function copyLayersBatch', 'Editable native load must copy layers as one guarded batch.'],
+        [nativeModule, 'allowLegacyLayerCopy === true', 'Crash-prone legacy layer copying must require explicit opt-in.'],
+        [nativeModule, 'restoreOriginalNow(originalFile', 'Native save must restore the original project before returning.'],
+        [bootstrap, 'Render only after the native snapshot', 'Thumbnail rendering must start only after native project restoration.'],
+        [panel, 'copyFileWithSha256', 'Media collection must copy and hash in one bounded-memory pass.'],
+        [panel, 'state.busy || state.statusBusy', 'Host status polling must pause during save and import operations.'],
+        [html, 'value="safe-composition"', 'Save UI must expose the recommended Safe Composition profile.'],
+        [html, 'id="import-structure-select"', 'Load UI must expose explicit structure choices.']
+    ].forEach(function (contract) {
+        if (contract[0].indexOf(contract[1]) === -1) {
+            fail(contract[2]);
+        } else {
+            pass();
+        }
+    });
+}
+
 checkManifest();
 checkBootstrapReferences();
 checkHtmlReferences();
 checkRequiredEngineFiles();
+checkTextContentRegression();
+checkFullFidelityContracts();
 checkJavaScript();
 checkExtendScript();
 checkJson();
 
 if (failures.length) {
-    process.stderr.write('Oplus Studio contract check failed:\n\n');
+    process.stderr.write('Otiner Studio contract check failed:\n\n');
     failures.forEach(function (message) {
         process.stderr.write('- ' + message + '\n');
     });
     process.stderr.write('\n' + failures.length + ' failure(s), ' + checks + ' check(s) passed.\n');
     process.exitCode = 1;
 } else {
-    process.stdout.write('Oplus Studio contract check passed (' + checks + ' checks).\n');
+    process.stdout.write('Otiner Studio contract check passed (' + checks + ' checks).\n');
 }

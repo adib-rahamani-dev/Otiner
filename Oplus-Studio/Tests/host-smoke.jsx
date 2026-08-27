@@ -156,8 +156,8 @@
         assertion(report, "CEP bridge bootstrap responds", pingEnvelope.ok && pingEnvelope.data.connected, pingEnvelope);
         assertion(report, "All host modules loaded", pingEnvelope.ok && pingEnvelope.data.modulesLoaded, pingEnvelope.data.moduleErrors);
 
-        var menuId = app.findMenuCommandId("Oplus Studio");
-        assertion(report, "Oplus Studio registered in AE menus", menuId > 0, { menuCommandId: menuId });
+        var menuId = app.findMenuCommandId("Otiner Studio");
+        assertion(report, "Otiner Studio registered in AE menus", menuId > 0, { menuCommandId: menuId });
 
         var comp = app.project.items.addComp("Oplus Host Smoke", 960, 540, 1, 4, 30);
         global.OPLUS_HOST_SMOKE_CONTEXT.comp = comp;
@@ -209,6 +209,9 @@
         controller.selected = true;
         global.OPLUS_HOST_SMOKE_CONTEXT.originalLayerCount = comp.numLayers;
 
+        var sourceProjectFile = new File(tempRoot.fsName + "/Host Smoke Source.aep");
+        app.project.save(sourceProjectFile);
+
         var assetDirectory = tempRoot.fsName + "/Library/Host Smoke Asset";
         var previewPath = assetDirectory + "/preview.png";
         global.OPLUS_HOST_SMOKE_CONTEXT.previewPath = previewPath;
@@ -225,11 +228,25 @@
                 libraryPath: tempRoot.fsName,
                 autoThumbnail: true,
                 defaultImportMode: "original"
-            }
+            },
+            options: { exactNative: false }
         };
         var saveEnvelope = OPLUS.util.parseJson(global.OPLUS_saveSelected(OPLUS.util.stringify(saveRequest)));
         assertion(report, "Save selected layers succeeds", saveEnvelope.ok, saveEnvelope.error || saveEnvelope.data);
         if (!saveEnvelope.ok) { throw new Error(saveEnvelope.error ? saveEnvelope.error.message : "Save failed."); }
+        comp = null;
+        var compSearchIndex;
+        for (compSearchIndex = 1; compSearchIndex <= app.project.numItems; compSearchIndex += 1) {
+            try {
+                if (app.project.item(compSearchIndex) instanceof CompItem &&
+                        app.project.item(compSearchIndex).name === "Oplus Host Smoke") {
+                    comp = app.project.item(compSearchIndex);
+                    break;
+                }
+            } catch (ignoreCompSearch) {}
+        }
+        if (!comp) { throw new Error("Original smoke-test composition was not reopened after native save."); }
+        comp.openInViewer();
 
         var assetFile = new File(assetDirectory + "/asset.json");
         var dataFile = new File(assetDirectory + "/data.json");
@@ -265,6 +282,7 @@
 
         var importRequest = {
             dataPath: dataFile.fsName,
+            assetDir: assetDirectory,
             mode: "currentTime",
             options: { mode: "currentTime", targetTime: 2 }
         };
@@ -289,6 +307,12 @@
         assertion(report, "Parenting restored",
             importedText && importedController && importedText.parent === importedController,
             null);
+        assertion(report, "Text content restored exactly",
+            importedText &&
+                importedText.property("ADBE Text Properties") &&
+                importedText.property("ADBE Text Properties").property("ADBE Text Document") &&
+                importedText.property("ADBE Text Properties").property("ADBE Text Document").value.text === "Oplus Smoke",
+            { expected: "Oplus Smoke" });
         assertion(report, "Keyframes restored",
             importedController &&
                 importedController.property("ADBE Transform Group").property("ADBE Position").numKeys === 2,
@@ -304,7 +328,7 @@
             importedText && importedText.property("ADBE Mask Parade").numProperties === 1,
             null);
 
-        var undoId = app.findMenuCommandId("Undo OPLUS Studio - Import Asset");
+        var undoId = app.findMenuCommandId("Undo Otiner Studio - Import Asset");
         if (undoId <= 0) { undoId = 16; }
         app.executeCommand(undoId);
         assertion(report, "Import is one undoable operation",

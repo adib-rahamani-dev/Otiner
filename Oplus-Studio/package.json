@@ -1,18 +1,25 @@
 {
   "name": "oplus-studio",
-  "version": "1.0.0",
+  "version": "1.4.0",
   "private": true,
-  "description": "Production CEP motion-design asset manager for Adobe After Effects 2025.",
+  "description": "Otiner Studio motion-design asset manager for Adobe After Effects 2025.",
   "main": "Engine/index.js",
   "type": "commonjs",
   "scripts": {
     "test": "node Engine/test/run.js",
     "check": "node scripts/check.js",
     "build": "node scripts/build.js",
+    "build:debug": "node scripts/build.js --debug",
     "clean": "node scripts/build.js --clean-only --skip-check",
     "verify": "npm run check && npm test && npm run build",
     "install:dev:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-dev.ps1",
-    "install:dev:mac": "bash ./scripts/install-dev.sh"
+    "install:dev:mac": "bash ./scripts/install-dev.sh",
+    "installer:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-windows-installer.ps1",
+    "installer:mac": "bash ./scripts/build-macos-installer.sh",
+    "installer:mac:first-install": "node ./scripts/build-macos-first-install.js",
+    "package:zxp": "node scripts/package-zxp.js",
+    "package:zxp:private-pair": "node scripts/create-private-zxp-pair.js",
+    "package:update:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-update-package.ps1"
   },
   "engines": {
     "node": ">=12.22"

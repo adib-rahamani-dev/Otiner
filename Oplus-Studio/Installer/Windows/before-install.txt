@@ -1,0 +1,7 @@
+Before you click Install:
+
+1. Close Adobe After Effects completely.
+2. This installer is for After Effects 2025 (version 25.x).
+3. Your selected Otiner Library and saved assets will not be deleted.
+
+Click Next, then Install.

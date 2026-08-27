@@ -11,8 +11,8 @@
     var OPLUS = global.OPLUS || {};
     global.OPLUS = OPLUS;
 
-    OPLUS.name = "Oplus Studio";
-    OPLUS.version = "1.0.0";
+    OPLUS.name = "Otiner Studio";
+    OPLUS.version = "1.4.0";
     OPLUS.schemaVersion = 1;
     OPLUS.settings = OPLUS.settings || {
         libraryPath: "",
@@ -142,7 +142,7 @@
                 .replace(/-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g, "")
         );
         if (!safe) {
-            throw new Error("Invalid JSON received by the Oplus bridge.");
+            throw new Error("Invalid JSON received by the Otiner bridge.");
         }
         return eval("(" + source + ")");
     };
@@ -402,6 +402,7 @@
             "shapes.jsx",
             "serializer.jsx",
             "thumbnail.jsx",
+            "native.jsx",
             "importer.jsx"
         ];
         OPLUS.moduleErrors = [];
@@ -454,7 +455,7 @@
                 projectState = project.file ? "saved" : "unsaved";
             }
             return {
-                statusText: "Oplus Engine Connected",
+                statusText: "Otiner Engine Connected",
                 afterEffectsVersion: String(app.version),
                 afterEffectsBuild: app.buildName ? String(app.buildName) : "",
                 project: {
@@ -489,7 +490,7 @@
 
     global.OPLUS_chooseLibrary = function () {
         return OPLUS.util.guard("settings.chooseLibrary", function () {
-            var selected = Folder.selectDialog("Choose Oplus Studio Library Location");
+            var selected = Folder.selectDialog("Choose Otiner Studio Library Location");
             if (!selected) {
                 var cancelled = new Error("Library selection was cancelled.");
                 cancelled.code = "USER_CANCELLED";
@@ -577,6 +578,15 @@
                 noSelection.code = "NO_SELECTED_LAYERS";
                 throw noSelection;
             }
+            var exactNative = !request.options || request.options.exactNative !== false;
+            var saveProfile = request.options && request.options.saveProfile ?
+                String(request.options.saveProfile) : "safe-composition";
+            var defaultLoadStructure = saveProfile === "safe-composition" ? "composition" : "layers";
+            if (exactNative && !app.project.file) {
+                var unsavedProject = new Error("Save the After Effects project once before creating an exact Otiner asset.");
+                unsavedProject.code = "NATIVE_PROJECT_MUST_BE_SAVED";
+                throw unsavedProject;
+            }
             if (!OPLUS.serializer || !OPLUS.serializer.serializeSelection) {
                 var noSerializer = new Error("The serializer module did not load.");
                 noSerializer.code = "SERIALIZER_UNAVAILABLE";
@@ -588,7 +598,9 @@
                 OPLUS.util.merge(OPLUS.settings, request.settings);
             }
 
-            var data = OPLUS.serializer.serializeSelection(request.options || {});
+            var serializationOptions = request.options || {};
+            serializationOptions.nativeOnly = saveProfile !== "maximum-compatibility";
+            var data = OPLUS.serializer.serializeSelection(serializationOptions);
             var created = metadata.created || OPLUS.util.nowIso();
             var updated = metadata.updated || metadata.modified || OPLUS.util.nowIso();
             var asset = {
@@ -604,6 +616,10 @@
                 modified: updated,
                 afterEffectsVersion: String(app.version),
                 layerCount: data.layers ? data.layers.length : comp.selectedLayers.length,
+                selectedLayerCount: data.selectedLayerCount !== undefined ? data.selectedLayerCount : comp.selectedLayers.length,
+                dependencyLayerCount: data.dependencyLayerCount || 0,
+                saveProfile: saveProfile,
+                defaultLoadStructure: defaultLoadStructure,
                 thumbnail: "preview.png",
                 schemaVersion: OPLUS.schemaVersion
             };
@@ -622,8 +638,35 @@
             var previewPath = assetDir + "/preview.png";
             var shouldRender = OPLUS.settings.autoThumbnail !== false && request.autoThumbnail !== false;
             var previewResult = null;
+
+            var nativeResult = null;
+            if (exactNative) {
+                if (!OPLUS.nativeCopy || typeof OPLUS.nativeCopy.saveSelection !== "function") {
+                    throw new Error("The exact native-copy module is unavailable.");
+                }
+                var nativeOptions = request.options || {};
+                nativeOptions.nativeLayerIndices = data.nativeLayerIndices || [];
+                nativeResult = OPLUS.nativeCopy.saveSelection(assetDir, asset.id, warnings, nativeOptions);
+                asset.nativeProject = nativeResult.fileName;
+                asset.nativeCompName = nativeResult.compName;
+                asset.fidelityMode = "native-aep";
+                data.nativeCopy = {
+                    fileName: nativeResult.fileName,
+                    compName: nativeResult.compName,
+                    fidelityMode: "native-aep",
+                    saveProfile: saveProfile,
+                    defaultLoadStructure: defaultLoadStructure,
+                    nativeOnly: data.nativeOnly === true
+                };
+                OPLUS.util.writeJson(assetDir + "/data.json", data);
+            }
+
+            /* Render only after the native snapshot has synchronously restored the
+             * original project. Closing a project while saveFrameToPng is pending can
+             * freeze or crash AE, especially with GPU plug-ins. */
             if (shouldRender && OPLUS.thumbnail && OPLUS.thumbnail.generate) {
                 try {
+                    comp = OPLUS.util.requireActiveComp();
                     previewResult = OPLUS.thumbnail.generate(comp, previewPath, request.previewOptions || {});
                     if (previewResult && previewResult.warning) {
                         warnings.push(previewResult.warning);
@@ -658,6 +701,7 @@
                 dataPath: assetDir + "/data.json",
                 previewPath: previewPath,
                 preview: previewResult,
+                nativeCopy: nativeResult,
                 warnings: warnings
             };
         });
@@ -682,7 +726,27 @@
             }
             var options = request.options || {};
             options.mode = request.mode || options.mode || OPLUS.settings.defaultImportMode || "original";
+            options.structure = request.loadStructure || options.structure ||
+                (data.nativeCopy && data.nativeCopy.defaultLoadStructure) || "composition";
+            if (options.structure === "saved") {
+                options.structure = (data.nativeCopy && data.nativeCopy.defaultLoadStructure) || "composition";
+            }
+            options.assetDir = request.assetDir || request.assetPath || options.assetDir || "";
+            options.mediaManifest = data.mediaManifest || [];
+            options.assetName = data.asset && data.asset.name ? data.asset.name : "Otiner Asset";
+            if (options.structure !== "compatibility" && request.preferNative !== false && data.nativeCopy && options.assetDir &&
+                    OPLUS.nativeCopy && typeof OPLUS.nativeCopy.importSelection === "function") {
+                var nativePath = new File(OPLUS.util.normalizePath(options.assetDir + "/" +
+                    (data.nativeCopy.fileName || "native.aep")));
+                if (nativePath.exists) {
+                    return OPLUS.nativeCopy.importSelection(options.assetDir, data.nativeCopy.compName, options);
+                }
+            }
+            if (data.nativeOnly === true) {
+                throw new Error("This fast exact asset requires Native Composition or Editable Native Layers mode.");
+            }
             var result = OPLUS.importer.importAsset(data, options);
+            if (result && typeof result === "object") { result.structure = "compatibility"; }
             OPLUS.log("asset.imported", {
                 assetId: data.asset ? data.asset.id : "",
                 mode: options.mode,

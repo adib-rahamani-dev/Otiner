@@ -1,0 +1,18 @@
+OTINER STUDIO 1.3 - WINDOWS
+
+اگر نسخه قدیمی نصب است:
+
+1. After Effects را کامل ببندید.
+2. فایل Otiner-Studio-Setup-Windows-1.3.0.exe را اجرا کنید.
+3. نسخه قبلی را حذف نکنید؛ Installer فایل‌های برنامه را جایگزین می‌کند.
+4. After Effects را باز کنید.
+5. Window > Extensions > Otiner Studio
+
+اگر نسخه‌ای دارید که دکمه UPDATE دارد:
+
+1. فایل Otiner-Update-1.3.0.zip را Extract نکنید.
+2. Otiner Studio > UPDATE
+3. فایل ZIP را داخل کادر بیندازید.
+4. After Effects را کامل ببندید و دوباره باز کنید.
+
+برای Exact Native Copy، پروژه After Effects باید قبل از SAVE حداقل یک بار ذخیره شده باشد.

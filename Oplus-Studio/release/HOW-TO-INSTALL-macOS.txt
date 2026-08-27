@@ -1,0 +1,12 @@
+نصب Oplus Studio روی مک
+
+1. After Effects را کاملاً ببند.
+2. از این صفحه نسخه macOS برنامه رایگان ZXP/UXP Installer را بگیر:
+   https://aescripts.com/learn/post/zxp-installer
+3. ZXP/UXP Installer را نصب و باز کن.
+4. فایل Oplus-Studio-macOS-1.0.0.zxp را داخل پنجره Installer بکش و رها کن.
+5. اگر مک رمز خواست، رمز ورود حساب مک را وارد کن.
+6. بعد از پیام موفقیت، After Effects 2025 را باز کن.
+7. برو به Window > Extensions > Oplus Studio
+
+این فایل ZXP را از داخل ZIP اجرا نکن؛ اگر ZIP شده، اول آن را Extract کن.

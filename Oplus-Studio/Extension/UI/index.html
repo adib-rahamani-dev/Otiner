@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: file: blob:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file: blob:; object-src 'none'; base-uri 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Oplus Studio</title>
+  <title>Otiner Studio</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,12 +13,12 @@
 
   <div id="app" class="app-shell" aria-busy="true">
     <header class="topbar">
-      <div class="brand" aria-label="Oplus Studio">
+      <div class="brand" aria-label="Otiner Studio">
         <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 32 32" role="img"><path d="M16 2.5 28 9.2v13.6L16 29.5 4 22.8V9.2L16 2.5Zm0 5.1-7.5 4.2v8.4l7.5 4.2 7.5-4.2v-8.4L16 7.6Zm0 3.7 4.3 2.4v4.7L16 20.8l-4.3-2.4v-4.7l4.3-2.4Z"/></svg>
+          <svg viewBox="0 0 32 32" role="img"><path d="M4 5h24v6H19v16h-6V11H4V5Zm17 8h7v6h-7v-6Zm0 8h7v6h-7v-6Z"/></svg>
         </span>
         <span class="brand-copy">
-          <strong>OPLUS</strong>
+          <strong>OTINER</strong>
           <span>STUDIO</span>
         </span>
       </div>
@@ -30,6 +30,14 @@
       </label>
 
       <div class="topbar-actions">
+        <button id="receive-button" class="button button-secondary" type="button" title="Add a shared Otiner asset package">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10l3.5-3.5 1.4 1.4L12 16.8 6.1 10.9l1.4-1.4L11 13V3ZM5 19h14v2H5v-2Z"/></svg>
+          <span>ADD ASSET</span>
+        </button>
+        <button id="update-button" class="button button-secondary" type="button" title="Install an Otiner update package">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-8.5 6H1l3.5 4L8 9H5.7A7 7 0 1 1 5 14H3a9 9 0 1 0 9-11Zm-1 4v6.2l4.4 2.5 1-1.7-3.4-2V7h-2Z"/></svg>
+          <span>UPDATE</span>
+        </button>
         <button id="save-button" class="button button-primary" type="button" title="Save selected After Effects layers (Ctrl+S)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5l-2-2Zm-7 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm5-10H6V5h11v4Z"/></svg>
           <span>SAVE</span>
@@ -43,7 +51,7 @@
     <section class="connection-bar" aria-label="Connection status">
       <button id="connection-pill" class="connection-pill is-checking" type="button" aria-live="polite" title="Test After Effects connection">
         <span class="status-dot" aria-hidden="true"></span>
-        <span id="connection-label">Connecting to Oplus Engine…</span>
+        <span id="connection-label">Connecting to Otiner Engine…</span>
       </button>
       <dl class="host-facts">
         <div><dt>AE</dt><dd id="ae-version">—</dd></div>
@@ -134,7 +142,7 @@
         <div id="detail-content" hidden>
           <div class="preview-stage">
             <img id="detail-preview" alt="" draggable="false">
-            <div id="detail-preview-fallback" class="preview-fallback" aria-hidden="true"><span>OPLUS</span></div>
+            <div id="detail-preview-fallback" class="preview-fallback" aria-hidden="true"><span>OTINER</span></div>
             <button id="favorite-button" class="preview-action" type="button" aria-label="Add to favorites" title="Favorite">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.2 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9L6.6 20l1-6.1-4.4-4.3 6.1-.9L12 3.2Z"/></svg>
             </button>
@@ -167,6 +175,15 @@
           </div>
 
           <div class="detail-actions">
+            <label class="field compact-field" for="import-structure-select">
+              <span>LOAD STRUCTURE</span>
+              <select id="import-structure-select">
+                <option value="saved">Use Asset Default</option>
+                <option value="composition">Safe Precomposition (Recommended)</option>
+                <option value="layers">Editable Native Layers</option>
+                <option value="compatibility">Compatibility Rebuild</option>
+              </select>
+            </label>
             <label class="field compact-field" for="import-mode-select">
               <span>IMPORT MODE</span>
               <select id="import-mode-select">
@@ -181,6 +198,10 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4h2v9l3.5-3.5 1.4 1.4-5.9 5.9-5.9-5.9 1.4-1.4L11 13V4Zm-6 15h14v2H5v-2Z"/></svg>
               IMPORT
             </button>
+            <button id="share-button" class="button button-secondary button-wide" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16a3 3 0 0 0-2.4 1.2l-7-3.5a3.1 3.1 0 0 0 0-1.4l7-3.5A3 3 0 1 0 15 7l-7 3.5a3 3 0 1 0 0 5l7 3.5a3 3 0 1 0 3-3Z"/></svg>
+              SHARE ASSET
+            </button>
             <button id="delete-button" class="button button-danger-ghost button-wide" type="button">DELETE ASSET</button>
           </div>
         </div>
@@ -191,10 +212,10 @@
   <section id="setup-screen" class="setup-screen" aria-labelledby="setup-title" hidden>
     <div class="setup-card">
       <div class="setup-logo" aria-hidden="true">
-        <svg viewBox="0 0 64 64"><path d="M32 5 56 18.5v27L32 59 8 45.5v-27L32 5Zm0 10L17 23.4v17.2L32 49l15-8.4V23.4L32 15Zm0 7.5 8.5 4.8v9.4L32 41.5l-8.5-4.8v-9.4l8.5-4.8Z"/></svg>
+        <svg viewBox="0 0 64 64"><path d="M8 10h48v12H38v32H26V22H8V10Zm42 16h6v12h-6V26Zm0 16h6v12h-6V42Z"/></svg>
       </div>
       <p class="eyebrow">FIRST LAUNCH</p>
-      <h1 id="setup-title">Welcome to Oplus Studio</h1>
+      <h1 id="setup-title">Welcome to Otiner Studio</h1>
       <p class="setup-copy">Choose a location for your motion design library. Assets, previews, logs, and metadata stay together and can be moved or backed up at any time.</p>
       <label class="field" for="setup-path-input">
         <span>LIBRARY LOCATION</span>
@@ -205,7 +226,7 @@
       </label>
       <p id="setup-validation" class="field-message" role="alert" hidden></p>
       <button id="setup-continue-button" class="button button-primary button-wide" type="button" disabled>CREATE LIBRARY</button>
-      <div class="setup-note"><span aria-hidden="true">✓</span> Oplus never uploads your assets. Your library remains local.</div>
+      <div class="setup-note"><span aria-hidden="true">✓</span> Otiner never uploads your assets. Your library remains local.</div>
     </div>
   </section>
 
@@ -223,6 +244,16 @@
           <span class="spinner small" aria-hidden="true"></span>
           <span>Inspecting selected layers…</span>
         </div>
+        <p class="fidelity-note"><strong>EXACT NATIVE COPY</strong> Every profile preserves the native AEP state. Safe Composition is the fastest and most crash-resistant choice.</p>
+        <label id="save-profile-field" class="field" for="save-profile-select">
+          <span>SAVE PROFILE</span>
+          <select id="save-profile-select" name="saveProfile">
+            <option value="safe-composition">Safe Composition — Recommended</option>
+            <option value="editable-native">Editable Native Layers</option>
+            <option value="maximum-compatibility">Maximum Compatibility Archive</option>
+          </select>
+          <small id="save-profile-help" class="field-help">Fast exact save. Loads as one native Precomp and collects Media only when you Share.</small>
+        </label>
         <label class="field" for="asset-name-input">
           <span>NAME <em>Required</em></span>
           <input id="asset-name-input" name="name" type="text" maxlength="100" autocomplete="off" required placeholder="e.g. Spring Title Reveal">
@@ -255,7 +286,7 @@
   <div id="settings-dialog" class="modal-backdrop" role="presentation" hidden>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <header class="modal-header">
-        <div><p class="eyebrow">PREFERENCES</p><h2 id="settings-title">Oplus Settings</h2></div>
+        <div><p class="eyebrow">PREFERENCES</p><h2 id="settings-title">Otiner Settings</h2></div>
         <button class="icon-button modal-close" type="button" data-close-dialog="settings-dialog" aria-label="Close dialog">×</button>
       </header>
       <form id="settings-form" novalidate>
@@ -286,6 +317,27 @@
           <button id="settings-submit-button" class="button button-primary" type="submit">SAVE SETTINGS</button>
         </footer>
       </form>
+    </section>
+  </div>
+
+  <div id="update-dialog" class="modal-backdrop" role="presentation" hidden>
+    <section class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="update-title">
+      <header class="modal-header">
+        <div><p class="eyebrow">SELF UPDATE</p><h2 id="update-title">Update Otiner Studio</h2></div>
+        <button class="icon-button modal-close" type="button" data-close-dialog="update-dialog" aria-label="Close dialog">×</button>
+      </header>
+      <div class="update-body">
+        <div id="update-drop-zone" class="update-drop-zone" tabindex="0" role="button" aria-label="Drop an Otiner update package or choose a file">
+          <span class="update-drop-icon" aria-hidden="true">⇩</span>
+          <strong>Drop update file here</strong>
+          <span>Use an Otiner update ZIP created by the release builder.</span>
+          <button id="update-choose-button" class="button button-secondary" type="button">CHOOSE UPDATE FILE</button>
+        </div>
+        <p id="update-status" class="update-status" aria-live="polite">Your current library and settings are preserved. Otiner creates a backup before replacing its code.</p>
+      </div>
+      <footer class="modal-footer">
+        <button class="button button-secondary" type="button" data-close-dialog="update-dialog">CLOSE</button>
+      </footer>
     </section>
   </div>
 

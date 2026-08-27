@@ -12,6 +12,7 @@ var distRoot = path.join(projectRoot, 'dist');
 var bundleName = 'studio.oplus.ae';
 var bundleRoot = path.join(distRoot, bundleName);
 var argumentsList = process.argv.slice(2);
+var includeDebugDescriptor = argumentsList.indexOf('--debug') !== -1;
 
 function assertInside(root, candidate, allowRoot) {
     var resolvedRoot = path.resolve(root);
@@ -107,7 +108,12 @@ function main() {
     fs.mkdirSync(bundleRoot, {
         recursive: true
     });
-    copyTree(extensionSource, bundleRoot);
+    copyTree(extensionSource, bundleRoot, {
+        exclude: function (parent, name) {
+            return path.resolve(parent) === path.resolve(extensionSource) &&
+                name === '.debug' && !includeDebugDescriptor;
+        }
+    });
     copyTree(engineSource, path.join(bundleRoot, 'Engine'), {
         exclude: function (parent, name) {
             return path.resolve(parent) === path.resolve(engineSource) && name === 'test';
@@ -127,7 +133,8 @@ function main() {
         version: packageJson.version,
         bundleId: bundleName,
         target: 'After Effects 2025',
-        cepRuntime: 12
+        cepRuntime: 12,
+        debugDescriptorIncluded: includeDebugDescriptor
     };
     fs.writeFileSync(
         path.join(bundleRoot, 'build-info.json'),

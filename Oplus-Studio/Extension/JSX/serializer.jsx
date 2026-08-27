@@ -177,6 +177,15 @@
             return shapeToObject(value);
         }
         try {
+            if (typeof AVItem !== "undefined" && value instanceof AVItem) {
+                return {
+                    __oplusType: "ProjectItemReference",
+                    projectItemId: finiteNumber(read(value, "id", 0), 0),
+                    name: String(read(value, "name", ""))
+                };
+            }
+        } catch (ignoreProjectItem) {}
+        try {
             if (typeof MarkerValue !== "undefined" && value instanceof MarkerValue) {
                 return markerToObject(value);
             }
@@ -238,7 +247,7 @@
         return data.comment || "";
     }
 
-    function valueFromJson(data, property) {
+    function valueFromJson(data, property, options) {
         if (data === null || data === undefined) {
             return data;
         }
@@ -260,6 +269,23 @@
         }
         if (data.__oplusType === "MarkerValue") {
             return objectToMarker(data);
+        }
+        if (data.__oplusType === "LayerReference") {
+            try {
+                if (options && options.layerBySerializedId && data.layerId &&
+                        options.layerBySerializedId[data.layerId]) {
+                    return options.layerBySerializedId[data.layerId].index;
+                }
+            } catch (ignoreLayerReference) {}
+            return finiteNumber(data.originalIndex, 0);
+        }
+        if (data.__oplusType === "ProjectItemReference") {
+            try {
+                if (options && options.sourceItems && data.sourceId && options.sourceItems[data.sourceId]) {
+                    return options.sourceItems[data.sourceId];
+                }
+            } catch (ignoreProjectItemReference) {}
+            return null;
         }
         return data;
     }
@@ -361,6 +387,11 @@
             enabled: read(property, "enabled", null),
             keys: []
         };
+        try {
+            if (property.isDropdownEffect && property.propertyParameters !== undefined) {
+                item.propertyParameters = jsonSafe(property.propertyParameters);
+            }
+        } catch (ignoreParameters) {}
         keyCount = finiteNumber(read(property, "numKeys", 0), 0);
         if (keyCount > 0) {
             for (i = 1; i <= keyCount; i += 1) {
@@ -482,26 +513,317 @@
         return null;
     }
 
-    function sourceInfo(layer, type) {
+    function sourceEnum(value) {
+        return { value: enumValue(value), name: enumName(value) };
+    }
+
+    function footageInterpretation(source) {
+        var main = read(source, "mainSource", null);
+        if (!main) { return null; }
+        return {
+            alphaMode: sourceEnum(read(main, "alphaMode", null)),
+            premulColor: jsonSafe(read(main, "premulColor", null)),
+            invertAlpha: read(main, "invertAlpha", null),
+            conformFrameRate: finiteNumber(read(main, "conformFrameRate", 0), 0),
+            nativeFrameRate: finiteNumber(read(main, "nativeFrameRate", 0), 0),
+            fieldSeparationType: sourceEnum(read(main, "fieldSeparationType", null)),
+            highQualityFieldSeparation: read(main, "highQualityFieldSeparation", null),
+            removePulldown: sourceEnum(read(main, "removePulldown", null)),
+            loop: finiteNumber(read(main, "loop", 1), 1),
+            isStill: !!read(main, "isStill", false),
+            hasAlpha: !!read(main, "hasAlpha", false)
+        };
+    }
+
+    function compositionInfo(comp) {
+        return {
+            name: String(read(comp, "name", "Composition")),
+            width: finiteNumber(read(comp, "width", 1920), 1920),
+            height: finiteNumber(read(comp, "height", 1080), 1080),
+            pixelAspect: finiteNumber(read(comp, "pixelAspect", 1), 1),
+            duration: finiteNumber(read(comp, "duration", 1), 1),
+            frameRate: finiteNumber(read(comp, "frameRate", 25), 25),
+            displayStartTime: finiteNumber(read(comp, "displayStartTime", 0), 0),
+            displayStartFrame: finiteNumber(read(comp, "displayStartFrame", 0), 0),
+            dropFrame: !!read(comp, "dropFrame", false),
+            workAreaStart: finiteNumber(read(comp, "workAreaStart", 0), 0),
+            workAreaDuration: finiteNumber(read(comp, "workAreaDuration", 1), 1),
+            bgColor: jsonSafe(read(comp, "bgColor", [0, 0, 0])),
+            renderer: String(read(comp, "renderer", "")),
+            resolutionFactor: jsonSafe(read(comp, "resolutionFactor", [1, 1])),
+            preserveNestedFrameRate: !!read(comp, "preserveNestedFrameRate", false),
+            preserveNestedResolution: !!read(comp, "preserveNestedResolution", false),
+            motionBlur: !!read(comp, "motionBlur", false),
+            draft3d: !!read(comp, "draft3d", false),
+            frameBlending: !!read(comp, "frameBlending", false),
+            hideShyLayers: !!read(comp, "hideShyLayers", false),
+            shutterAngle: finiteNumber(read(comp, "shutterAngle", 180), 180),
+            shutterPhase: finiteNumber(read(comp, "shutterPhase", -90), -90),
+            motionBlurSamplesPerFrame: finiteNumber(read(comp, "motionBlurSamplesPerFrame", 16), 16),
+            motionBlurAdaptiveSampleLimit: finiteNumber(read(comp, "motionBlurAdaptiveSampleLimit", 128), 128)
+        };
+    }
+
+    function registerSource(source, context) {
+        var sourceKey;
+        var sourceId;
+        var item;
+        var layers;
+        var idByIndex;
+        var i;
+        if (!source || !context) { return null; }
+        sourceKey = "item-" + String(read(source, "id", read(source, "name", "unknown")));
+        if (context.sourceIds[sourceKey]) { return context.sourceIds[sourceKey]; }
+        sourceId = "source-" + (context.sources.length + 1);
+        context.sourceIds[sourceKey] = sourceId;
+        item = {
+            id: sourceId,
+            projectItemId: finiteNumber(read(source, "id", 0), 0),
+            name: String(read(source, "name", "Source")),
+            kind: "unknown"
+        };
+        context.sources.push(item);
+        try {
+            if (source instanceof CompItem) {
+                item.kind = "composition";
+                item.composition = compositionInfo(source);
+                item.layers = [];
+                layers = [];
+                idByIndex = {};
+                for (i = 1; i <= source.numLayers; i += 1) { layers.push(source.layer(i)); }
+                for (i = 0; i < layers.length; i += 1) { idByIndex[layers[i].index] = sourceId + "-layer-" + (i + 1); }
+                for (i = 0; i < layers.length; i += 1) {
+                    try {
+                        var sourceLayerData = serializeLayer(layers[i], idByIndex, context.options, context.warnings, context);
+                        encodeLayerReferences(sourceLayerData, idByIndex, context);
+                        item.layers.push(sourceLayerData);
+                    }
+                    catch (errorLayer) {
+                        warning(context.warnings, "SOURCE_LAYER_SERIALIZE_FAILED", errorLayer.toString(), {
+                            source: item.name, layer: read(layers[i], "name", "")
+                        });
+                    }
+                }
+                return sourceId;
+            }
+        } catch (ignoreCompType) {}
+        item.kind = "footage";
+        item.width = finiteNumber(read(source, "width", 100), 100);
+        item.height = finiteNumber(read(source, "height", 100), 100);
+        item.pixelAspect = finiteNumber(read(source, "pixelAspect", 1), 1);
+        item.duration = finiteNumber(read(source, "duration", 1), 1);
+        item.frameRate = finiteNumber(read(source, "frameRate", 0), 0);
+        item.filePath = call(function () { return source.file.fsName; }, null);
+        item.missingFootage = !!call(function () { return source.footageMissing; }, false);
+        item.interpretation = footageInterpretation(source);
+        return sourceId;
+    }
+
+    function registerPropertySources(layer, context) {
+        function scan(group) {
+            var count = finiteNumber(read(group, "numProperties", 0), 0);
+            var i;
+            var child;
+            var value;
+            var keyIndex;
+            for (i = 1; i <= count; i += 1) {
+                try {
+                    child = group.property(i);
+                    if (isProperty(child)) {
+                        if (child.numKeys > 0) {
+                            for (keyIndex = 1; keyIndex <= child.numKeys; keyIndex += 1) {
+                                value = child.keyValue(keyIndex);
+                                try { if (typeof AVItem !== "undefined" && value instanceof AVItem) { registerSource(value, context); } } catch (ignoreKeyItem) {}
+                            }
+                        } else {
+                            value = child.value;
+                            try { if (typeof AVItem !== "undefined" && value instanceof AVItem) { registerSource(value, context); } } catch (ignoreValueItem) {}
+                        }
+                    } else if (child) { scan(child); }
+                } catch (ignoreProperty) {}
+            }
+        }
+        if (context) { scan(layer); }
+    }
+
+    /* Native-only assets keep their exact state in native.aep. This lightweight
+     * registry records only the source graph needed for media collection, without
+     * converting every effect/property/keyframe to JSON a second time. */
+    function registerNativeSource(source, context) {
+        var sourceKey;
+        var sourceId;
+        var item;
+        var i;
+        var layer;
+        var type;
+        var childSource;
+        if (!source || !context) { return null; }
+        sourceKey = "item-" + String(read(source, "id", read(source, "name", "unknown")));
+        if (context.sourceIds[sourceKey]) { return context.sourceIds[sourceKey]; }
+        sourceId = "source-" + (context.sources.length + 1);
+        context.sourceIds[sourceKey] = sourceId;
+        item = {
+            id: sourceId,
+            projectItemId: finiteNumber(read(source, "id", 0), 0),
+            name: String(read(source, "name", "Source")),
+            kind: "unknown"
+        };
+        context.sources.push(item);
+        try {
+            if (source instanceof CompItem) {
+                item.kind = "composition";
+                item.composition = compositionInfo(source);
+                item.layers = [];
+                for (i = 1; i <= source.numLayers; i += 1) {
+                    layer = source.layer(i);
+                    type = layerType(layer);
+                    childSource = null;
+                    try { childSource = layer.source; } catch (ignoreLayerSource) {}
+                    item.layers.push({
+                        index: i,
+                        name: String(read(layer, "name", "Layer")),
+                        type: type,
+                        sourceId: childSource ? registerNativeSource(childSource, context) : null
+                    });
+                    registerNativePropertySources(layer, context);
+                }
+                return sourceId;
+            }
+        } catch (ignoreCompType) {}
+        item.kind = "footage";
+        item.width = finiteNumber(read(source, "width", 100), 100);
+        item.height = finiteNumber(read(source, "height", 100), 100);
+        item.pixelAspect = finiteNumber(read(source, "pixelAspect", 1), 1);
+        item.duration = finiteNumber(read(source, "duration", 1), 1);
+        item.frameRate = finiteNumber(read(source, "frameRate", 0), 0);
+        item.filePath = call(function () { return source.file.fsName; }, null);
+        item.missingFootage = !!call(function () { return source.footageMissing; }, false);
+        item.interpretation = footageInterpretation(source);
+        return sourceId;
+    }
+
+    function registerNativePropertySources(layer, context) {
+        function inspectValue(value) {
+            try {
+                if (typeof AVItem !== "undefined" && value instanceof AVItem) {
+                    registerNativeSource(value, context);
+                }
+            } catch (ignoreItem) {}
+        }
+        function scan(group) {
+            var count = finiteNumber(read(group, "numProperties", 0), 0);
+            var i;
+            var child;
+            var keyIndex;
+            for (i = 1; i <= count; i += 1) {
+                try {
+                    child = group.property(i);
+                    if (isProperty(child)) {
+                        if (child.numKeys > 0) {
+                            for (keyIndex = 1; keyIndex <= child.numKeys; keyIndex += 1) {
+                                inspectValue(child.keyValue(keyIndex));
+                            }
+                        } else { inspectValue(child.value); }
+                    } else if (child) { scan(child); }
+                } catch (ignoreProperty) {}
+            }
+        }
+        if (context) { scan(layer); }
+    }
+
+    function nativeLayerRecord(layer, idByIndex, primaryByIndex, context) {
+        var index = finiteNumber(read(layer, "index", 0), 0);
+        var parent = read(layer, "parent", null);
+        var matte = read(layer, "trackMatteLayer", null);
+        var source = null;
+        var sourceId = null;
+        try { source = layer.source; } catch (ignoreSource) {}
+        if (source) { sourceId = registerNativeSource(source, context); }
+        registerNativePropertySources(layer, context);
+        return {
+            id: idByIndex[index] || ("layer-" + index),
+            index: index,
+            name: String(read(layer, "name", "Layer")),
+            type: layerType(layer),
+            dependencyOnly: !primaryByIndex[index],
+            parentIndex: parent ? finiteNumber(read(parent, "index", 0), 0) : null,
+            trackMatteLayerIndex: matte ? finiteNumber(read(matte, "index", 0), 0) : null,
+            timing: {
+                startTime: finiteNumber(read(layer, "startTime", 0), 0),
+                inPoint: finiteNumber(read(layer, "inPoint", 0), 0),
+                outPoint: finiteNumber(read(layer, "outPoint", 0), 0)
+            },
+            source: source ? {
+                sourceId: sourceId,
+                name: String(read(source, "name", "Source")),
+                filePath: call(function () { return source.file.fsName; }, null),
+                interpretation: footageInterpretation(source)
+            } : null
+        };
+    }
+
+    function sourceInfo(layer, type, context) {
         var source;
+        var sourceId;
         if (type === "solid" || type === "adjustment") {
             return solidSource(layer);
         }
         if (type === "av") {
             try {
                 source = layer.source;
+                sourceId = registerSource(source, context);
                 return {
+                    kind: call(function () { return source instanceof CompItem ? "composition" : "footage"; }, "footage"),
+                    sourceId: sourceId,
                     name: String(read(source, "name", "")),
                     width: finiteNumber(read(source, "width", 100), 100),
                     height: finiteNumber(read(source, "height", 100), 100),
                     pixelAspect: finiteNumber(read(source, "pixelAspect", 1), 1),
                     duration: finiteNumber(read(source, "duration", 1), 1),
                     filePath: call(function () { return source.file.fsName; }, null),
-                    missingFootage: !!call(function () { return source.footageMissing; }, false)
+                    missingFootage: !!call(function () { return source.footageMissing; }, false),
+                    interpretation: footageInterpretation(source)
                 };
             } catch (ignore) {}
         }
         return null;
+    }
+
+    function serializeAdditionalGroups(layer, options, warnings) {
+        var skipped = {
+            "ADBE Transform Group": true,
+            "ADBE Material Options Group": true,
+            "ADBE Audio Group": true,
+            "ADBE Time Remapping": true,
+            "ADBE Marker": true,
+            "ADBE Effect Parade": true,
+            "ADBE Mask Parade": true,
+            "ADBE Root Vectors Group": true,
+            "ADBE Text Properties": true,
+            "ADBE Camera Options Group": true,
+            "ADBE Light Options Group": true
+        };
+        var result = [];
+        var count = finiteNumber(read(layer, "numProperties", 0), 0);
+        var i;
+        var child;
+        var matchName;
+        for (i = 1; i <= count; i += 1) {
+            try {
+                child = layer.property(i);
+                matchName = String(read(child, "matchName", ""));
+                if (child && !skipped[matchName]) {
+                    result.push(isProperty(child) ?
+                        serializeProperty(child, options, warnings) :
+                        serializePropertyGroup(child, options, warnings));
+                }
+            } catch (error) {
+                warning(warnings, "ADDITIONAL_PROPERTY_READ_FAILED", error.toString(), {
+                    layer: read(layer, "name", ""), propertyIndex: i
+                });
+            }
+        }
+        return result;
     }
 
     function groupByMatchName(layer, matchName) {
@@ -519,7 +841,8 @@
         return property && isProperty(property) ? serializeProperty(property, options, warnings) : null;
     }
 
-    function serializeLayer(layer, idByIndex, options, warnings) {
+    function serializeLayer(layer, idByIndex, options, warnings, context) {
+        registerPropertySources(layer, context);
         var type = layerType(layer);
         var parent = read(layer, "parent", null);
         var trackMatteLayer = read(layer, "trackMatteLayer", null);
@@ -534,10 +857,17 @@
             parentIndex: parent ? finiteNumber(read(parent, "index", 0), 0) : null,
             parentName: parent ? String(read(parent, "name", "")) : null,
             enabled: !!read(layer, "enabled", true),
+            selected: !!read(layer, "selected", false),
             locked: !!read(layer, "locked", false),
             shy: !!read(layer, "shy", false),
             solo: !!read(layer, "solo", false),
+            autoOrient: {
+                value: enumValue(read(layer, "autoOrient", null)),
+                name: enumName(read(layer, "autoOrient", null))
+            },
             threeDLayer: !!read(layer, "threeDLayer", false),
+            threeDPerChar: !!read(layer, "threeDPerChar", false),
+            environmentLayer: !!read(layer, "environmentLayer", false),
             motionBlur: !!read(layer, "motionBlur", false),
             frameBlending: !!read(layer, "frameBlending", false),
             frameBlendingType: {
@@ -548,6 +878,14 @@
             guideLayer: !!read(layer, "guideLayer", false),
             collapseTransformation: !!read(layer, "collapseTransformation", false),
             preserveTransparency: !!read(layer, "preserveTransparency", false),
+            quality: {
+                value: enumValue(read(layer, "quality", null)),
+                name: enumName(read(layer, "quality", null))
+            },
+            samplingQuality: {
+                value: enumValue(read(layer, "samplingQuality", null)),
+                name: enumName(read(layer, "samplingQuality", null))
+            },
             audioEnabled: read(layer, "audioEnabled", null),
             label: finiteNumber(read(layer, "label", 0), 0),
             comment: String(read(layer, "comment", "")),
@@ -571,12 +909,13 @@
                 outPoint: finiteNumber(read(layer, "outPoint", 0), 0),
                 stretch: finiteNumber(read(layer, "stretch", 100), 100)
             },
-            source: sourceInfo(layer, type),
+            source: sourceInfo(layer, type, context),
             transform: serializeOptionalGroup(layer, "ADBE Transform Group", options, warnings),
             materialOptions: serializeOptionalGroup(layer, "ADBE Material Options Group", options, warnings),
             audio: serializeOptionalGroup(layer, "ADBE Audio Group", options, warnings),
             timeRemap: serializeOptionalProperty(layer, "ADBE Time Remapping", options, warnings),
             markers: serializeOptionalProperty(layer, "ADBE Marker", options, warnings),
+            additionalProperties: serializeAdditionalGroups(layer, options, warnings),
             effects: [],
             masks: []
         };
@@ -665,10 +1004,76 @@
         return minX === null ? null : [(minX + maxX) / 2, (minY + maxY) / 2];
     }
 
+    function layerIndexDependencies(layer) {
+        var result = [];
+        var seen = {};
+        function add(value) {
+            var index = Math.round(finiteNumber(value, 0));
+            if (index > 0 && !seen[index]) { seen[index] = true; result.push(index); }
+        }
+        function scan(group) {
+            var count = finiteNumber(read(group, "numProperties", 0), 0);
+            var i;
+            var child;
+            var typeName;
+            var keyIndex;
+            for (i = 1; i <= count; i += 1) {
+                try {
+                    child = group.property(i);
+                    if (isProperty(child)) {
+                        typeName = String(enumName(read(child, "propertyValueType", null)) || "").toUpperCase();
+                        if (typeName.indexOf("LAYER_INDEX") >= 0) {
+                            if (child.numKeys > 0) {
+                                for (keyIndex = 1; keyIndex <= child.numKeys; keyIndex += 1) { add(child.keyValue(keyIndex)); }
+                            } else { add(child.value); }
+                        }
+                    } else if (child) { scan(child); }
+                } catch (ignoreProperty) {}
+            }
+        }
+        scan(layer);
+        return result;
+    }
+
+    function encodeLayerReferences(value, idByIndex, context) {
+        var i;
+        var key;
+        var typeName;
+        if (!value || typeof value !== "object") { return; }
+        if (value.__oplusType === "ProjectItemReference" && context) {
+            value.sourceId = context.sourceIds["item-" + String(value.projectItemId)] || null;
+        }
+        if (value.nodeType === "property" && value.propertyValueType) {
+            typeName = String(value.propertyValueType.name || "").toUpperCase();
+            if (typeName.indexOf("LAYER_INDEX") >= 0) {
+                if (typeof value.value === "number") {
+                    value.value = { __oplusType: "LayerReference", layerId: idByIndex[value.value] || null, originalIndex: value.value };
+                }
+                for (i = 0; i < (value.keys || []).length; i += 1) {
+                    if (typeof value.keys[i].value === "number") {
+                        value.keys[i].value = { __oplusType: "LayerReference",
+                            layerId: idByIndex[value.keys[i].value] || null, originalIndex: value.keys[i].value };
+                    }
+                }
+            }
+        }
+        if (value instanceof Array) {
+            for (i = 0; i < value.length; i += 1) { encodeLayerReferences(value[i], idByIndex, context); }
+        } else {
+            for (key in value) {
+                if (value.hasOwnProperty(key) && value[key] && typeof value[key] === "object") {
+                    encodeLayerReferences(value[key], idByIndex, context);
+                }
+            }
+        }
+    }
+
     function serializeSelection(options) {
         var comp = activeComp();
         var selected;
         var layers = [];
+        var primaryLayers = [];
+        var primaryByIndex = {};
         var idByIndex = {};
         var warnings = [];
         var selectionStart = null;
@@ -676,7 +1081,9 @@
         var i;
         var layer;
         var result;
+        var context;
         options = normalizeOptions(options);
+        context = { sources: [], sourceIds: {}, options: options, warnings: warnings };
         if (!comp) {
             throw new Error("OPLUS_NO_ACTIVE_COMP: Open or select a composition first.");
         }
@@ -686,6 +1093,31 @@
         }
         for (i = 0; i < selected.length; i += 1) {
             layers.push(selected[i]);
+            primaryLayers.push(selected[i]);
+            primaryByIndex[selected[i].index] = true;
+        }
+        /* Parent and track-matte layers are structural dependencies. Include them
+         * automatically so a visually complete asset is never saved with a broken hierarchy. */
+        for (i = 0; i < layers.length; i += 1) {
+            var dependencyCandidates = [read(layers[i], "parent", null), read(layers[i], "trackMatteLayer", null)];
+            var layerReferences = layerIndexDependencies(layers[i]);
+            var referenceIndex;
+            for (referenceIndex = 0; referenceIndex < layerReferences.length; referenceIndex += 1) {
+                try { dependencyCandidates.push(comp.layer(layerReferences[referenceIndex])); } catch (ignoreReferenceLayer) {}
+            }
+            var dependencyIndex;
+            var candidate;
+            var alreadyIncluded;
+            var scanIndex;
+            for (dependencyIndex = 0; dependencyIndex < dependencyCandidates.length; dependencyIndex += 1) {
+                candidate = dependencyCandidates[dependencyIndex];
+                if (!candidate) { continue; }
+                alreadyIncluded = false;
+                for (scanIndex = 0; scanIndex < layers.length; scanIndex += 1) {
+                    if (layers[scanIndex] === candidate) { alreadyIncluded = true; break; }
+                }
+                if (!alreadyIncluded) { layers.push(candidate); }
+            }
         }
         layers.sort(function (a, b) { return a.index - b.index; });
         for (i = 0; i < layers.length; i += 1) {
@@ -710,20 +1142,55 @@
                 time: finiteNumber(read(comp, "time", 0), 0)
             },
             layerCount: 0,
+            selectedLayerCount: primaryLayers.length,
+            dependencyLayerCount: 0,
+            nativeLayerIndices: [],
             selectionStart: 0,
             selectionEnd: 0,
-            selectionCenter: selectedRootCenter(layers, finiteNumber(read(comp, "time", 0), 0)),
+            selectionCenter: selectedRootCenter(primaryLayers, finiteNumber(read(comp, "time", 0), 0)),
             layers: [],
+            sources: context.sources,
             warnings: warnings
         };
-        for (i = 0; i < layers.length; i += 1) {
-            layer = layers[i];
-            try {
-                result.layers.push(serializeLayer(layer, idByIndex, options, warnings));
-                if (selectionStart === null || layer.inPoint < selectionStart) {
+        if (options.nativeOnly === true) {
+            result.nativeOnly = true;
+            result.fallbackMode = "native-required";
+            for (i = 0; i < layers.length; i += 1) {
+                result.nativeLayerIndices.push(layers[i].index);
+                layer = layers[i];
+                var nativeRecord = nativeLayerRecord(layer, idByIndex, primaryByIndex, context);
+                result.layers.push(nativeRecord);
+                if (nativeRecord.dependencyOnly) { result.dependencyLayerCount += 1; }
+                if (primaryByIndex[layer.index] && (selectionStart === null || layer.inPoint < selectionStart)) {
                     selectionStart = layer.inPoint;
                 }
-                if (selectionEnd === null || layer.outPoint > selectionEnd) {
+                if (primaryByIndex[layer.index] && (selectionEnd === null || layer.outPoint > selectionEnd)) {
+                    selectionEnd = layer.outPoint;
+                }
+            }
+            result.layerCount = result.layers.length;
+            result.selectionStart = selectionStart === null ? 0 : finiteNumber(selectionStart, 0);
+            result.selectionEnd = selectionEnd === null ? result.selectionStart : finiteNumber(selectionEnd, result.selectionStart);
+            log("serializer.selection.native-only", {
+                composition: result.composition.name,
+                layerCount: result.layerCount,
+                sourceCount: context.sources.length
+            });
+            return result;
+        }
+        for (i = 0; i < layers.length; i += 1) {
+            result.nativeLayerIndices.push(layers[i].index);
+            layer = layers[i];
+            try {
+                var serializedLayer = serializeLayer(layer, idByIndex, options, warnings, context);
+                encodeLayerReferences(serializedLayer, idByIndex, context);
+                serializedLayer.dependencyOnly = !primaryByIndex[layer.index];
+                result.layers.push(serializedLayer);
+                if (serializedLayer.dependencyOnly) { result.dependencyLayerCount += 1; }
+                if (primaryByIndex[layer.index] && (selectionStart === null || layer.inPoint < selectionStart)) {
+                    selectionStart = layer.inPoint;
+                }
+                if (primaryByIndex[layer.index] && (selectionEnd === null || layer.outPoint > selectionEnd)) {
                     selectionEnd = layer.outPoint;
                 }
             } catch (error) {
@@ -841,6 +1308,13 @@
         if (!property || !data) {
             return false;
         }
+        if (data.propertyParameters && typeof property.setPropertyParameters === "function") {
+            try { property.setPropertyParameters(data.propertyParameters); } catch (errorParameters) {
+                warning(warnings, "DROPDOWN_PARAMETERS_RESTORE_FAILED", errorParameters.toString(), {
+                    property: data.name || data.matchName
+                });
+            }
+        }
         try {
             if (data.dimensionsSeparated !== undefined && property.isSeparationLeader) {
                 property.dimensionsSeparated = !!data.dimensionsSeparated;
@@ -859,7 +1333,7 @@
                 }
                 try {
                     property.setValueAtTime(finiteNumber(keys[i].time, 0) + timeOffset,
-                        valueFromJson(keys[i].value, property));
+                        valueFromJson(keys[i].value, property, options));
                     keyIndex = property.nearestKeyIndex(finiteNumber(keys[i].time, 0) + timeOffset);
                     applyKeyAttributes(property, keyIndex, keys[i], warnings);
                 } catch (errorKey) {
@@ -870,7 +1344,7 @@
             }
         } else if (!data.valueUnavailable && data.value !== undefined) {
             try {
-                property.setValue(valueFromJson(data.value, property));
+                property.setValue(valueFromJson(data.value, property, options));
             } catch (errorValue) {
                 warning(warnings, "PROPERTY_RESTORE_FAILED", errorValue.toString(), {
                     property: data.name || data.matchName
@@ -890,6 +1364,9 @@
             }
         }
         setExpression(property, data, options, warnings);
+        if (data.enabled !== null && data.enabled !== undefined) {
+            try { if (property.canSetEnabled !== false) { property.enabled = !!data.enabled; } } catch (ignoreEnabled) {}
+        }
         return true;
     }
 

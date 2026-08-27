@@ -78,6 +78,37 @@ For diagnostics only, skip the contract gate:
 
 Do not use **--skip-check** in CI or for a release candidate.
 
+Production builds omit the source **Extension/.debug** descriptor. Use
+**npm run build:debug** only when remote CEF inspection is intentionally needed.
+
+## One-click installers
+
+Windows (requires Inno Setup 6):
+
+    npm run installer:windows
+
+macOS (must run on macOS; uses Apple's pkgbuild and productbuild):
+
+    npm run installer:mac
+
+Both generated installers bundle the complete staged extension. They are intended
+for internal testing because they enable CEP 12 PlayerDebugMode. Public releases
+should use the signed ZXP path below, or a fully signed/notarized installer chain.
+
+Detailed Persian handoff instructions are in **README-EASY-INSTALL.md**.
+
+## Drag-and-drop update package
+
+Build the Windows-authored cross-platform update ZIP with:
+
+    npm run package:update:windows
+
+The output is **release/Otiner-Update-<version>.zip**. Users can drag this file
+onto the Otiner Update dialog. The updater rejects traversal, symbolic links,
+wrong bundle IDs, malformed versions, oversized payloads, and non-newer builds.
+It stores a rollback backup beneath CEP user data and preserves installed
+Database, Logs, and Cache directories before replacing extension code.
+
 ## Development deployment
 
 Windows:
@@ -138,6 +169,11 @@ A typical signing shape is:
     ZXPSignCmd -sign <input-extension-directory> <output.zxp> <certificate.p12> <password> -tsa <timestamp-url>
 
 Use **dist/studio.oplus.ae** as the input extension directory. Verify the resulting package with the signing tool before distribution. Inject the certificate path and password from a secure CI secret store, never package.json or a shell script in source control.
+
+The repository wrapper builds, signs, and verifies in one command after setting
+**ZXPSIGNCMD_PATH**, **OPLUS_ZXP_CERTIFICATE**, and **OPLUS_ZXP_PASSWORD**:
+
+    npm run package:zxp
 
 Follow Adobe's current [Package, Distribute, Install guide](https://github.com/Adobe-CEP/Getting-Started-guides/blob/master/Package%20Distribute%20Install/readme.md) for ZXPSignCmd/ExManCmd acquisition and release installation.
 

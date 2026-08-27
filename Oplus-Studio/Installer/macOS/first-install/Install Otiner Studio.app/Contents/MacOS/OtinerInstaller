@@ -1,0 +1,107 @@
+#!/bin/bash
+set -u
+
+APP_MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTENTS_DIR="$(cd "$APP_MACOS_DIR/.." && pwd)"
+PAYLOAD="$CONTENTS_DIR/Resources/studio.oplus.ae"
+TARGET_PARENT="$HOME/Library/Application Support/Adobe/CEP/extensions"
+TARGET="$TARGET_PARENT/studio.oplus.ae"
+BACKUP_ROOT="$HOME/Library/Application Support/Otiner Studio/Installer Backups"
+LOG_ROOT="$HOME/Library/Logs"
+LOG_FILE="$LOG_ROOT/Otiner-Studio-Installer.log"
+STAGING="$TARGET_PARENT/.studio.oplus.ae-install-$$"
+LOCK_DIR="$TARGET_PARENT/.otiner-studio-installer-lock"
+BACKUP=""
+LOCK_OWNED=0
+
+show_dialog() {
+    /usr/bin/osascript - "$1" <<'APPLESCRIPT' >/dev/null 2>&1
+on run argv
+    display dialog (item 1 of argv) buttons {"OK"} default button "OK" with icon note
+end run
+APPLESCRIPT
+}
+
+log_line() {
+    /bin/mkdir -p "$LOG_ROOT" >/dev/null 2>&1 || true
+    /bin/echo "$(/bin/date '+%Y-%m-%d %H:%M:%S') $1" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+cleanup() {
+    if [ -d "$STAGING" ] && [ "$(/usr/bin/basename "$STAGING")" = ".studio.oplus.ae-install-$$" ]; then
+        /bin/rm -rf -- "$STAGING" >/dev/null 2>&1 || true
+    fi
+    if [ "$LOCK_OWNED" -eq 1 ] && [ -d "$LOCK_DIR" ]; then /bin/rmdir "$LOCK_DIR" >/dev/null 2>&1 || true; fi
+}
+
+fail_install() {
+    log_line "FAILED: $1"
+    cleanup
+    show_dialog "Otiner Studio نصب نشد.\n\n$1\n\nLog:\n$LOG_FILE"
+    exit 1
+}
+
+log_line "Starting Otiner Studio first installer."
+
+if /usr/bin/pgrep -x "After Effects" >/dev/null 2>&1 || /usr/bin/pgrep -x "AfterFX" >/dev/null 2>&1; then
+    fail_install "اول After Effects را با Command + Q کاملاً ببندید، سپس Installer را دوباره باز کنید."
+fi
+
+if [ ! -d "$PAYLOAD" ] || [ ! -f "$PAYLOAD/CSXS/manifest.xml" ] || [ ! -f "$PAYLOAD/build-info.json" ]; then
+    fail_install "فایل‌های داخلی Installer کامل نیستند. ZIP را دوباره Extract کنید و برنامه را از داخل همان پوشه باز کنید."
+fi
+
+if /usr/bin/find "$PAYLOAD" -type l -print -quit | /usr/bin/grep -q .; then
+    fail_install "Payload شامل Symbolic Link غیرمجاز است."
+fi
+
+/bin/mkdir -p "$TARGET_PARENT" || fail_install "پوشه Adobe CEP ساخته نشد."
+if ! /bin/mkdir "$LOCK_DIR" >/dev/null 2>&1; then
+    fail_install "یک Installer دیگر در حال اجراست. چند ثانیه صبر کنید و دوباره امتحان کنید."
+fi
+LOCK_OWNED=1
+
+trap cleanup EXIT INT TERM
+/bin/rm -rf -- "$STAGING" >/dev/null 2>&1 || true
+/usr/bin/ditto "$PAYLOAD" "$STAGING" || fail_install "کپی فایل‌های افزونه ناموفق بود."
+
+if [ ! -f "$STAGING/CSXS/manifest.xml" ] || [ ! -f "$STAGING/JSX/bootstrap.jsx" ] || [ ! -f "$STAGING/UI/index.html" ]; then
+    fail_install "نسخه کپی‌شده کامل نیست و نصب متوقف شد."
+fi
+
+/bin/chmod -R u+rwX,go+rX "$STAGING" >/dev/null 2>&1 || fail_install "مجوز فایل‌های افزونه تنظیم نشد."
+/usr/bin/xattr -dr com.apple.quarantine "$STAGING" >/dev/null 2>&1 || true
+
+if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then
+    if [ -L "$TARGET" ] || [ ! -d "$TARGET" ]; then
+        fail_install "مسیر نصب قبلی معتبر نیست و برای امنیت تغییر داده نشد: $TARGET"
+    fi
+    /bin/mkdir -p "$BACKUP_ROOT" || fail_install "پوشه Backup ساخته نشد."
+    BACKUP="$BACKUP_ROOT/studio.oplus.ae-$(/bin/date '+%Y%m%d-%H%M%S')"
+    /bin/mv "$TARGET" "$BACKUP" || fail_install "نسخه قبلی Backup نشد."
+    log_line "Previous extension moved to $BACKUP"
+fi
+
+if ! /bin/mv "$STAGING" "$TARGET"; then
+    if [ -n "$BACKUP" ] && [ -d "$BACKUP" ] && [ ! -e "$TARGET" ]; then
+        /bin/mv "$BACKUP" "$TARGET" >/dev/null 2>&1 || true
+    fi
+    fail_install "انتقال نسخه جدید به مسیر Adobe ناموفق بود."
+fi
+
+if ! /usr/bin/defaults write com.adobe.CSXS.12 PlayerDebugMode -string 1; then
+    if [ -n "$BACKUP" ] && [ -d "$BACKUP" ]; then
+        /bin/mv "$TARGET" "$STAGING" >/dev/null 2>&1 || true
+        /bin/mv "$BACKUP" "$TARGET" >/dev/null 2>&1 || true
+    elif [ -d "$TARGET" ]; then
+        /bin/mv "$TARGET" "$STAGING" >/dev/null 2>&1 || true
+    fi
+    fail_install "CEP Debug Mode فعال نشد."
+fi
+
+/usr/bin/xattr -dr com.apple.quarantine "$TARGET" >/dev/null 2>&1 || true
+log_line "SUCCESS: Installed to $TARGET"
+trap - EXIT INT TERM
+cleanup
+show_dialog "Otiner Studio با موفقیت نصب شد.\n\nحالا After Effects 2025 را باز کنید، دسترسی Scriptها را فعال کنید و از مسیر Window > Extensions (Legacy) > Otiner Studio پنل را باز کنید."
+exit 0

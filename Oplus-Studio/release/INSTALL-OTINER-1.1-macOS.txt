@@ -1,0 +1,22 @@
+این نصب فقط برای ارتقای یک‌باره Otiner 1.0 به 1.1 است.
+بعد از نصب 1.1، آپدیت‌های آینده از داخل خود افزونه Drag & Drop می‌شوند.
+
+1) فایل Otiner-Update-1.1.0.zip را داخل Downloads بگذارید.
+2) After Effects را کاملاً ببندید.
+3) بلوک زیر را یکجا در Terminal اجرا کنید:
+
+UPDATE="$HOME/Downloads/Otiner-Update-1.1.0.zip"
+TARGET="$HOME/Library/Application Support/Adobe/CEP/extensions/studio.oplus.ae"
+BACKUP="$HOME/Library/Application Support/Otiner Studio/Backups/studio.oplus.ae-$(date +%Y%m%d-%H%M%S)"
+TEMP_DIR="$(mktemp -d -t otiner-update)"
+ditto -x -k "$UPDATE" "$TEMP_DIR"
+mkdir -p "$(dirname "$TARGET")" "$(dirname "$BACKUP")"
+if [ -d "$TARGET" ]; then ditto "$TARGET" "$BACKUP"; fi
+mkdir -p "$TARGET"
+ditto "$TEMP_DIR/studio.oplus.ae" "$TARGET"
+defaults write com.adobe.CSXS.12 PlayerDebugMode -string 1
+rm -rf "$TEMP_DIR"
+if [ -f "$TARGET/CSXS/manifest.xml" ]; then echo "Otiner Studio 1.1 installed successfully"; else echo "Installation failed"; fi
+
+4) After Effects 2025 را باز کنید.
+5) از Window > Extensions > Otiner Studio وارد افزونه شوید.

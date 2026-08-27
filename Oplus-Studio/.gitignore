@@ -6,3 +6,5 @@ Cache/
 *.backup-*
 .DS_Store
 Thumbs.db
+tmp/
+private-signing/

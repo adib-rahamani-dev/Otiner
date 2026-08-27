@@ -127,21 +127,61 @@
     function resolveFootage(source, options, warnings, layerData) {
         var file;
         var footage;
-        if (!source || !source.filePath || options.importFootage === false) { return null; }
-        footage = findFootage(source.filePath);
+        var wantedPath;
+        var importOptions;
+        if (!source || options.importFootage === false) { return null; }
+        wantedPath = source.filePath || "";
+        if (source.packagedPath && options.assetDir) {
+            wantedPath = OPLUS.util.normalizePath(options.assetDir + "/" + source.packagedPath);
+        }
+        if (!wantedPath) { return null; }
+        footage = findFootage(wantedPath);
         if (footage) { return footage; }
         try {
-            file = new File(source.filePath);
+            file = new File(wantedPath);
             if (file.exists) {
-                footage = app.project.importFile(new ImportOptions(file));
+                importOptions = new ImportOptions(file);
+                try { if (source.sequence) { importOptions.sequence = true; } } catch (ignoreSequence) {}
+                try { if (source.forceAlphabetical) { importOptions.forceAlphabetical = true; } } catch (ignoreAlphabetical) {}
+                footage = app.project.importFile(importOptions);
+                applyFootageInterpretation(footage, source.interpretation, warnings, layerData);
                 return footage;
             }
         } catch (error) {
             warn(warnings, "FOOTAGE_IMPORT_FAILED", error.toString(), {
-                layer: layerData.name || "", path: source.filePath
+                layer: layerData.name || "", path: wantedPath
             });
         }
         return null;
+    }
+
+    function applyFootageInterpretation(footage, data, warnings, layerData) {
+        var main;
+        var value;
+        if (!footage || !data) { return; }
+        try { main = footage.mainSource; } catch (ignoreMain) { main = null; }
+        if (!main) { return; }
+        try {
+            value = enumFromData(data.alphaMode, typeof AlphaMode !== "undefined" ? AlphaMode : null);
+            if (value !== null) { main.alphaMode = value; }
+        } catch (ignoreAlpha) {}
+        try { if (data.premulColor instanceof Array) { main.premulColor = data.premulColor; } } catch (ignorePremul) {}
+        try { if (data.invertAlpha !== null && data.invertAlpha !== undefined) { main.invertAlpha = !!data.invertAlpha; } } catch (ignoreInvert) {}
+        try { if (!main.isStill && data.conformFrameRate !== undefined) { main.conformFrameRate = number(data.conformFrameRate, 0); } } catch (ignoreRate) {}
+        try {
+            value = enumFromData(data.fieldSeparationType,
+                typeof FieldSeparationType !== "undefined" ? FieldSeparationType : null);
+            if (value !== null) { main.fieldSeparationType = value; }
+        } catch (ignoreFields) {}
+        try { if (data.highQualityFieldSeparation !== null && data.highQualityFieldSeparation !== undefined) {
+            main.highQualityFieldSeparation = !!data.highQualityFieldSeparation;
+        } } catch (ignoreHighQuality) {}
+        try {
+            value = enumFromData(data.removePulldown,
+                typeof PulldownPhase !== "undefined" ? PulldownPhase : null);
+            if (value !== null) { main.removePulldown = value; }
+        } catch (ignorePulldown) {}
+        try { if (data.loop !== undefined) { main.loop = Math.max(1, Math.round(number(data.loop, 1))); } } catch (ignoreLoop) {}
     }
 
     function makeTextLayer(comp, layerData) {
@@ -159,7 +199,7 @@
         return comp.layers.addText(info.text || "");
     }
 
-    function createLayer(comp, layerData, options, warnings) {
+    function createLayer(comp, layerData, options, warnings, sourceItems) {
         var type = String(layerData.type || "unknown");
         var source = layerData.source || {};
         var duration = Math.max(comp.frameDuration, number(source.duration,
@@ -187,7 +227,8 @@
                 try { layer.adjustmentLayer = true; } catch (ignoreAdjustment) {}
             }
         } else if (type === "av") {
-            footage = resolveFootage(source, options, warnings, layerData);
+            footage = source.sourceId && sourceItems ? sourceItems[source.sourceId] : null;
+            if (!footage) { footage = resolveFootage(source, options, warnings, layerData); }
             if (footage) {
                 layer = comp.layers.add(footage);
             } else {
@@ -341,6 +382,8 @@
 
     function applyGroups(layer, data, options, warnings) {
         var target;
+        var additional;
+        var i;
         if (!OPLUS.serializer || typeof OPLUS.serializer.applyPropertyGroup !== "function") {
             throw new Error("OPLUS_SERIALIZER_NOT_LOADED: Property restoration is unavailable.");
         }
@@ -367,13 +410,41 @@
             target = group(layer, "ADBE Light Options Group");
             if (target && data.lightOptions) { OPLUS.serializer.applyPropertyGroup(target, data.lightOptions, options, warnings); }
         }
+        additional = data.additionalProperties || [];
+        for (i = 0; i < additional.length; i += 1) {
+            target = group(layer, additional[i].matchName || additional[i].name);
+            if (!target) {
+                try {
+                    if (layer.canAddProperty(additional[i].matchName)) {
+                        target = layer.addProperty(additional[i].matchName);
+                    }
+                } catch (ignoreAddAdditional) {}
+            }
+            if (!target) {
+                warn(warnings, "ADDITIONAL_PROPERTY_NOT_FOUND",
+                    "A stored layer property group is unavailable in this After Effects installation.", {
+                        layer: data.name || "", property: additional[i].name || additional[i].matchName || ""
+                    });
+            } else if (additional[i].nodeType === "property") {
+                OPLUS.serializer.applyProperty(target, additional[i], options, warnings);
+            } else {
+                OPLUS.serializer.applyPropertyGroup(target, additional[i], options, warnings);
+            }
+        }
     }
 
     function applyFlags(layer, data, warnings) {
         var value;
         try { layer.enabled = data.enabled !== false; } catch (ignore1) {}
+        try { if (data.selected !== undefined) { layer.selected = !!data.selected; } } catch (ignoreSelected) {}
         try { layer.shy = !!data.shy; } catch (ignore2) {}
         try { layer.solo = !!data.solo; } catch (ignore3) {}
+        try {
+            value = enumFromData(data.autoOrient, typeof AutoOrientType !== "undefined" ? AutoOrientType : null);
+            if (value !== null) { layer.autoOrient = value; }
+        } catch (ignoreAutoOrient) {}
+        try { if (data.threeDPerChar !== undefined) { layer.threeDPerChar = !!data.threeDPerChar; } } catch (ignorePerChar3d) {}
+        try { if (data.environmentLayer !== undefined) { layer.environmentLayer = !!data.environmentLayer; } } catch (ignoreEnvironment) {}
         try { layer.motionBlur = !!data.motionBlur; } catch (ignore4) {}
         try { layer.frameBlending = !!data.frameBlending; } catch (ignoreFrameBlend) {}
         try {
@@ -385,6 +456,15 @@
         try { layer.guideLayer = !!data.guideLayer; } catch (ignore6) {}
         try { layer.collapseTransformation = !!data.collapseTransformation; } catch (ignore7) {}
         try { layer.preserveTransparency = !!data.preserveTransparency; } catch (ignore8) {}
+        try {
+            value = enumFromData(data.quality, typeof LayerQuality !== "undefined" ? LayerQuality : null);
+            if (value !== null) { layer.quality = value; }
+        } catch (ignoreQuality) {}
+        try {
+            value = enumFromData(data.samplingQuality,
+                typeof LayerSamplingQuality !== "undefined" ? LayerSamplingQuality : null);
+            if (value !== null) { layer.samplingQuality = value; }
+        } catch (ignoreSamplingQuality) {}
         try { if (data.audioEnabled !== null && data.audioEnabled !== undefined) { layer.audioEnabled = !!data.audioEnabled; } } catch (ignore9) {}
         try {
             value = enumFromData(data.blendingMode, typeof BlendingMode !== "undefined" ? BlendingMode : null);
@@ -527,6 +607,107 @@
         return removed;
     }
 
+    function applyCompositionSettings(comp, data) {
+        data = data || {};
+        try { comp.displayStartTime = number(data.displayStartTime, 0); } catch (ignoreStartTime) {}
+        try { if (data.displayStartFrame !== undefined) { comp.displayStartFrame = number(data.displayStartFrame, 0); } } catch (ignoreStartFrame) {}
+        try { comp.dropFrame = !!data.dropFrame; } catch (ignoreDropFrame) {}
+        try { comp.workAreaStart = number(data.workAreaStart, 0); } catch (ignoreWorkStart) {}
+        try { comp.workAreaDuration = number(data.workAreaDuration, comp.duration); } catch (ignoreWorkDuration) {}
+        try { if (data.bgColor instanceof Array) { comp.bgColor = data.bgColor; } } catch (ignoreBg) {}
+        try { if (data.renderer) { comp.renderer = data.renderer; } } catch (ignoreRenderer) {}
+        try { if (data.resolutionFactor instanceof Array) { comp.resolutionFactor = data.resolutionFactor; } } catch (ignoreResolution) {}
+        try { comp.preserveNestedFrameRate = !!data.preserveNestedFrameRate; } catch (ignoreNestedRate) {}
+        try { comp.preserveNestedResolution = !!data.preserveNestedResolution; } catch (ignoreNestedResolution) {}
+        try { comp.motionBlur = !!data.motionBlur; } catch (ignoreMotionBlur) {}
+        try { comp.draft3d = !!data.draft3d; } catch (ignoreDraft) {}
+        try { comp.frameBlending = !!data.frameBlending; } catch (ignoreFrameBlending) {}
+        try { comp.hideShyLayers = !!data.hideShyLayers; } catch (ignoreShy) {}
+        try { comp.shutterAngle = number(data.shutterAngle, 180); } catch (ignoreShutterAngle) {}
+        try { comp.shutterPhase = number(data.shutterPhase, -90); } catch (ignoreShutterPhase) {}
+        try { comp.motionBlurSamplesPerFrame = number(data.motionBlurSamplesPerFrame, 16); } catch (ignoreSamples) {}
+        try { comp.motionBlurAdaptiveSampleLimit = number(data.motionBlurAdaptiveSampleLimit, 128); } catch (ignoreAdaptive) {}
+    }
+
+    function restoreCompositionLayers(comp, layerList, settings, warnings, sourceItems) {
+        var records = [];
+        var byId = {};
+        var propertyOptions = { timeOffset: 0 };
+        var i;
+        var layerData;
+        var layer;
+        var key;
+        for (key in settings) { if (settings.hasOwnProperty(key)) { propertyOptions[key] = settings[key]; } }
+        layerList = layerList || [];
+        for (i = layerList.length - 1; i >= 0; i -= 1) {
+            layerData = layerList[i];
+            try {
+                layer = createLayer(comp, layerData, settings, warnings, sourceItems);
+                records.unshift({ data: layerData, layer: layer });
+                byId[layerData.id || ("layer-" + (i + 1))] = layer;
+            } catch (errorCreate) {
+                warn(warnings, "SOURCE_LAYER_CREATE_FAILED", errorCreate.toString(), {
+                    composition: comp.name, layer: layerData.name || "", type: layerData.type || ""
+                });
+            }
+        }
+        propertyOptions.layerBySerializedId = byId;
+        propertyOptions.sourceItems = sourceItems;
+        restoreParenting(records, byId, settings, warnings);
+        for (i = 0; i < records.length; i += 1) {
+            try { applyLayer(records[i], propertyOptions, [0, 0], warnings); } catch (errorApply) {
+                warn(warnings, "SOURCE_LAYER_RESTORE_FAILED", errorApply.toString(), {
+                    composition: comp.name, layer: records[i].data.name || ""
+                });
+            }
+        }
+        restoreTrackMattes(records, byId, warnings);
+        restoreLocks(records);
+    }
+
+    function buildSourceItems(data, settings, warnings) {
+        var definitions = data.sources || [];
+        var sourceItems = {};
+        var i;
+        var definition;
+        var info;
+        var item;
+        for (i = 0; i < definitions.length; i += 1) {
+            definition = definitions[i] || {};
+            if (definition.kind === "composition") {
+                info = definition.composition || definition;
+                try {
+                    item = app.project.items.addComp(
+                        info.name || definition.name || "Otiner Precomp",
+                        clampDimension(info.width, 1920), clampDimension(info.height, 1080),
+                        Math.max(0.01, Math.min(100, number(info.pixelAspect, 1))),
+                        Math.max(0.01, number(info.duration, 1)),
+                        Math.max(1, number(info.frameRate, 25)));
+                    sourceItems[definition.id] = item;
+                    applyCompositionSettings(item, info);
+                } catch (errorComp) {
+                    warn(warnings, "SOURCE_COMPOSITION_CREATE_FAILED", errorComp.toString(), {
+                        source: definition.name || definition.id || ""
+                    });
+                }
+            }
+        }
+        for (i = 0; i < definitions.length; i += 1) {
+            definition = definitions[i] || {};
+            if (definition.kind === "footage") {
+                item = resolveFootage(definition, settings, warnings, { name: definition.name || "Footage" });
+                if (item) { sourceItems[definition.id] = item; }
+            }
+        }
+        for (i = 0; i < definitions.length; i += 1) {
+            definition = definitions[i] || {};
+            if (definition.kind === "composition" && sourceItems[definition.id]) {
+                restoreCompositionLayers(sourceItems[definition.id], definition.layers, settings, warnings, sourceItems);
+            }
+        }
+        return sourceItems;
+    }
+
     function importAsset(payload, options) {
         var unpacked = unpack(payload, options);
         var data = unpacked.data;
@@ -550,6 +731,7 @@
         var result;
         var errorToThrow = null;
         var key;
+        var sourceItems = {};
         if (!comp) {
             throw new Error("OPLUS_NO_ACTIVE_COMP: Open or select a destination composition first.");
         }
@@ -582,12 +764,13 @@
         for (key in settings) { if (settings.hasOwnProperty(key)) { propertyOptions[key] = settings[key]; } }
         propertyOptions.timeOffset = timeOffset;
         try {
-            app.beginUndoGroup("OPLUS Studio - Import Asset");
+            app.beginUndoGroup("Otiner Studio - Import Asset");
             undoStarted = true;
+            sourceItems = buildSourceItems(data, settings, warnings);
             for (i = data.layers.length - 1; i >= 0; i -= 1) {
                 layerData = data.layers[i];
                 try {
-                    layer = createLayer(comp, layerData, settings, warnings);
+                    layer = createLayer(comp, layerData, settings, warnings, sourceItems);
                     records.unshift({ data: layerData, layer: layer });
                     byId[layerData.id || ("layer-" + (i + 1))] = layer;
                 } catch (errorCreate) {
@@ -596,6 +779,8 @@
                     });
                 }
             }
+            propertyOptions.layerBySerializedId = byId;
+            propertyOptions.sourceItems = sourceItems;
             if (records.length === 0) {
                 throw new Error("OPLUS_IMPORT_EMPTY: No layers could be created.");
             }

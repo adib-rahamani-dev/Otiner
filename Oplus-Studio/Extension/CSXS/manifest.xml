@@ -2,11 +2,11 @@
 <ExtensionManifest
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     ExtensionBundleId="studio.oplus.ae"
-    ExtensionBundleName="Oplus Studio"
-    ExtensionBundleVersion="1.0.0"
+    ExtensionBundleName="Otiner Studio"
+    ExtensionBundleVersion="1.4.0"
     Version="7.0">
     <ExtensionList>
-        <Extension Id="studio.oplus.ae.panel" Version="1.0.0" />
+        <Extension Id="studio.oplus.ae.panel" Version="1.4.0" />
     </ExtensionList>
     <ExecutionEnvironment>
         <HostList>
@@ -36,7 +36,7 @@
                 </Lifecycle>
                 <UI>
                     <Type>Panel</Type>
-                    <Menu>Oplus Studio</Menu>
+                    <Menu>Otiner Studio</Menu>
                     <Geometry>
                         <Size>
                             <Height>720</Height>

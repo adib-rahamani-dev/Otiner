@@ -1,0 +1,7 @@
+Otiner Studio is installed.
+
+1. Open Adobe After Effects 2025.
+2. Open Window > Extensions > Otiner Studio.
+3. The first time, click Choose Library Location and select a normal writable folder.
+
+If After Effects was open during installation, close it completely and open it again.
